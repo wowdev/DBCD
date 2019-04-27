@@ -1,30 +1,45 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using DBCD.Providers;
 
 namespace DBCD
 {
+
     public class DBCD
     {
-        private DBCProvider dbcProvider;
-        private DBDProvider dbdProvider;
-        public DBCD(DBCProvider dbcProvider, DBDProvider dbdProvider)
+        private IDBCProvider dbcProvider;
+        private IDBDProvider dbdProvider;
+        public DBCD(IDBCProvider dbcProvider, IDBDProvider dbdProvider)
         {
             this.dbcProvider = dbcProvider;
             this.dbdProvider = dbdProvider;
         }
 
-        public IDictionary Load(string filename)
+        public IDBCDStorage Load(string tableName)
         {
-            var dbcStream = this.dbcProvider.StreamForFilename(filename);
-            var dbdStream = this.dbdProvider.StreamForFilename(filename);
+            var dbcStream = this.dbcProvider.StreamForTableName(tableName);
+            var dbdStream = this.dbdProvider.StreamForTableName(tableName);
 
             var builder = new DBCDBuilder();
-            var definition = builder.Build(dbcStream, dbdStream);
 
-            var type = typeof(Storage<>).MakeGenericType(definition);
+            // Since passing the stream to DB2Files.Net will close it after read, we need to make a copy here.
+            var dbcStreamCopy = new MemoryStream();
+            dbcStream.CopyTo(dbcStreamCopy);
 
-            return (IDictionary)Activator.CreateInstance(type, dbcStream);
+            // Reset stream position to zero.
+            dbcStream.Position = 0;
+            dbcStreamCopy.Position = 0;
+
+            var definition = builder.Build(dbcStream, dbdStream, tableName);
+
+            var type = typeof(DBCDStorage<>).MakeGenericType(definition.Item1);
+
+            return (IDBCDStorage)Activator.CreateInstance(type, new object[2] {
+                dbcStreamCopy, // TODO: Fix the stream being unreadable at this point.
+                definition.Item2
+            });
         }
     }
 }

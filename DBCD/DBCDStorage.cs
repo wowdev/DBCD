@@ -1,61 +1,77 @@
-using System;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Reflection.Emit;
-using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Dynamic;
 
 using DB2FileReaderLib.NET;
-using DB2FileReaderLib.NET.Attributes;
 
 namespace DBCD
 {
-    internal class Storage<T> : ConcurrentDictionary<int, T> where T : class, new()
+    public class DBCDRow : DynamicObject
     {
-        internal Storage(Stream stream)
+        public int ID;
+
+        private dynamic raw;
+
+        internal DBCDRow(dynamic raw)
         {
-            DB2Reader reader;
+            this.raw = raw;
+            this.ID = raw.ID;
+        }
 
-            using (var bin = new BinaryReader(stream))
-            {
-                var identifier = new string(bin.ReadChars(4));
-                stream.Position = 0;
-                switch (identifier)
-                {
-                    case "WDC3":
-                        reader = new WDC3Reader(stream);
-                        break;
-                    case "WDC2":
-                        reader = new WDC2Reader(stream);
-                        break;
-                    case "WDC1":
-                        reader = new WDC1Reader(stream);
-                        break;
-                    default:
-                        throw new Exception("DBC type " + identifier + " is not supported!");
-                }
-            }
+        public override bool TryGetMember(GetMemberBinder binder, out object result)
+        {
+            return this.raw.TryGetMember(binder, out result);
+        }
+    }
 
-            FieldInfo[] fields = typeof(T).GetFields();
+    public class DynamicKeyValuePair<T>
+    {
+        public T Key;
+        public dynamic Value;
 
-            FieldCache<T>[] fieldCache = new FieldCache<T>[fields.Length];
+        internal DynamicKeyValuePair(T key, dynamic value)
+        {
+            this.Key = key;
+            this.Value = value;
+        }
+    }
 
-            for (int i = 0; i < fields.Length; ++i)
-            {
-                bool indexMapAttribute = reader.Flags.HasFlagExt(DB2Flags.Index) ? Attribute.IsDefined(fields[i], typeof(IndexAttribute)) : false;
+    public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>
+    {
+        string[] availableColumns { get; }
 
-                fieldCache[i] = new FieldCache<T>(fields[i], fields[i].FieldType.IsArray, fields[i].GetSetter<T>(), indexMapAttribute);
-            }
+        IEnumerable<dynamic> Values { get; }
 
-            Parallel.ForEach(reader.AsEnumerable(), row =>
-            {
-                T entry = new T();
+        IEnumerable<int> Keys { get; }
+    }
 
-                row.Value.GetFields(fieldCache, entry);
+    public class DBCDStorage<T> : Storage<T>, IDBCDStorage where T : class, new()
+    {
+        private string[] availableColumns;
+        private string tableName;
+        string[] IDBCDStorage.availableColumns => this.availableColumns;
 
-                TryAdd(row.Key, entry);
-            });
+        public DBCDStorage(Stream stream, DBCDInfo info) : base(stream)
+        {
+            this.availableColumns = info.availableColumns;
+            this.tableName = info.tableName;
+        }
+
+
+        private IEnumerable<DBCDRow> DynamicValues => this.Values.Select(row => new DBCDRow(row));
+        IEnumerable<dynamic> IDBCDStorage.Values => this.DynamicValues;
+        IEnumerable<int> IDBCDStorage.Keys => this.Keys;
+
+
+        IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()
+        {
+            return this.DynamicValues.Select(row => new DynamicKeyValuePair<int>(row.ID, row)).GetEnumerator();
+        }
+
+        public override string ToString()
+        {
+            return $"{this.tableName}";
         }
     }
 }

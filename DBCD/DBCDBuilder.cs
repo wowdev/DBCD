@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -9,6 +10,14 @@ using DBDefsLib;
 
 namespace DBCD
 {
+
+    public struct DBCDInfo
+    {
+        internal string tableName;
+
+        internal string[] availableColumns;
+    }
+
     internal class DBCDBuilder
     {
         private ModuleBuilder moduleBuilder;
@@ -22,10 +31,9 @@ namespace DBCD
             this.moduleBuilder = moduleBuilder;
         }
 
-        internal Type Build(Stream dbc, Stream dbd, string name = null, string build = null)
+        internal Tuple<Type, DBCDInfo> Build(Stream dbc, Stream dbd, string name = null, string build = null)
         {
             var dbdReader = new DBDReader();
-            var dbcReader = ReaderForDBC(dbc);
 
             if (name == null)
             {
@@ -43,7 +51,9 @@ namespace DBCD
 
             if (versionDefinition == null)
             {
+                var dbcReader = DB2Reader.FromStream(dbc);
                 var layoutHash = dbcReader.LayoutHash.ToString("X8");
+
                 Utils.GetVersionDefinitionByLayoutHash(databaseDefinition, layoutHash, out versionDefinition);
             }
 
@@ -59,8 +69,8 @@ namespace DBCD
             foreach (var fieldDefinition in fields)
             {
                 var columnDefinition = databaseDefinition.columnDefinitions[fieldDefinition.name];
-                var type = FieldDefinitionToType(fieldDefinition, columnDefinition);
-                var field = typeBuilder.DefineField(fieldDefinition.name, type, FieldAttributes.Public);
+                var fieldType = FieldDefinitionToType(fieldDefinition, columnDefinition);
+                var field = typeBuilder.DefineField(fieldDefinition.name, fieldType, FieldAttributes.Public);
 
                 if (fieldDefinition.isID)
                 {
@@ -70,28 +80,14 @@ namespace DBCD
                     field.SetCustomAttribute(displayNameAttributeBuilder);
                 }
             }
+            var type = typeBuilder.CreateTypeInfo();
+            var columns = fields.Select(field => field.name).ToArray();
 
-            return typeBuilder.CreateTypeInfo();
-        }
+            var info = new DBCDInfo();
+            info.availableColumns = columns;
+            info.tableName = name;
 
-        private static DB2Reader ReaderForDBC(Stream dbc)
-        {
-            var reader = new BinaryReader(dbc);
-            var identifier = new string(reader.ReadChars(4));
-
-            reader.BaseStream.Position = 0;
-
-            switch (identifier)
-            {
-                case "WDC3":
-                    return new WDC3Reader(dbc);
-                case "WDC2":
-                    return new WDC2Reader(dbc);
-                case "WDC1":
-                    return new WDC1Reader(dbc);
-                default:
-                    throw new ArgumentException("DBC type " + identifier + " is not supported!");
-            }
+            return new Tuple<Type, DBCDInfo>(type, info);
         }
 
         private static Type FieldDefinitionToType(Structs.Definition field, Structs.ColumnDefinition column)
