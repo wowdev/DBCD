@@ -345,3 +345,6 @@ MigrationBackup/
 
 # Visual Studio Code
 .vscode
+
+# Private Providers
+DBCD/Providers/MirrorDBCProvider.cs
