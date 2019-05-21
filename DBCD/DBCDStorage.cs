@@ -1,9 +1,8 @@
-using System.IO;
-using System.Linq;
+using DBFileReaderLib;
 using System.Collections.Generic;
 using System.Dynamic;
-
-using DB2FileReaderLib.NET;
+using System.IO;
+using System.Linq;
 
 namespace DBCD
 {
@@ -11,7 +10,7 @@ namespace DBCD
     {
         public int ID;
 
-        private dynamic raw;
+        private readonly dynamic raw;
 
         internal DBCDRow(dynamic raw)
         {
@@ -39,7 +38,7 @@ namespace DBCD
 
     public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>
     {
-        string[] availableColumns { get; }
+        string[] AvailableColumns { get; }
 
         IEnumerable<dynamic> Values { get; }
 
@@ -48,11 +47,13 @@ namespace DBCD
 
     public class DBCDStorage<T> : Storage<T>, IDBCDStorage where T : class, new()
     {
-        private string[] availableColumns;
-        private string tableName;
-        string[] IDBCDStorage.availableColumns => this.availableColumns;
+        private readonly string[] availableColumns;
+        private readonly string tableName;
+        string[] IDBCDStorage.AvailableColumns => this.availableColumns;
 
-        public DBCDStorage(Stream stream, DBCDInfo info) : base(stream)
+        public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBReader(stream), info) { }
+
+        public DBCDStorage(DBReader dbReader, DBCDInfo info) : base(dbReader)
         {
             this.availableColumns = info.availableColumns;
             this.tableName = info.tableName;

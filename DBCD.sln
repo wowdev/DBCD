@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.645
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DBCD", "DBCD\DBCD.csproj", "{8267DA23-F629-4756-8D14-F532617FBCE4}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DBFileReaderLib", "DBFileReaderLib\DBFileReaderLib.csproj", "{3172C02B-502C-449F-81D3-47BBF47297BD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DBCD.Tests", "DBCD.Tests\DBCD.Tests.csproj", "{96CFC512-3818-487F-8FB6-7632E340ABB9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8267DA23-F629-4756-8D14-F532617FBCE4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8267DA23-F629-4756-8D14-F532617FBCE4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8267DA23-F629-4756-8D14-F532617FBCE4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8267DA23-F629-4756-8D14-F532617FBCE4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3172C02B-502C-449F-81D3-47BBF47297BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3172C02B-502C-449F-81D3-47BBF47297BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3172C02B-502C-449F-81D3-47BBF47297BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3172C02B-502C-449F-81D3-47BBF47297BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96CFC512-3818-487F-8FB6-7632E340ABB9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96CFC512-3818-487F-8FB6-7632E340ABB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96CFC512-3818-487F-8FB6-7632E340ABB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96CFC512-3818-487F-8FB6-7632E340ABB9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A4100D30-F9D2-4353-9F01-1D5B67BC2BEA}
+	EndGlobalSection
+EndGlobal

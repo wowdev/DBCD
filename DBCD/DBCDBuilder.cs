@@ -4,8 +4,8 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
-using DB2FileReaderLib.NET;
-using DB2FileReaderLib.NET.Attributes;
+using DBFileReaderLib;
+using DBFileReaderLib.Attributes;
 using DBDefsLib;
 
 namespace DBCD
@@ -31,7 +31,7 @@ namespace DBCD
             this.moduleBuilder = moduleBuilder;
         }
 
-        internal Tuple<Type, DBCDInfo> Build(Stream dbc, Stream dbd, string name = null, string build = null)
+        internal Tuple<Type, DBCDInfo> Build(DBReader dbcReader, Stream dbd, string name = null, string build = null)
         {
             var dbdReader = new DBDReader();
 
@@ -51,7 +51,6 @@ namespace DBCD
 
             if (versionDefinition == null)
             {
-                var dbcReader = DB2Reader.FromStream(dbc);
                 var layoutHash = dbcReader.LayoutHash.ToString("X8");
 
                 Utils.GetVersionDefinitionByLayoutHash(databaseDefinition, layoutHash, out versionDefinition);
@@ -77,6 +76,14 @@ namespace DBCD
                     var constructorParameters = new Type[] { };
                     var constructorInfo = typeof(IndexAttribute).GetConstructor(constructorParameters);
                     var displayNameAttributeBuilder = new CustomAttributeBuilder(constructorInfo, new object[] { });
+                    field.SetCustomAttribute(displayNameAttributeBuilder);
+                }
+
+                if(fieldDefinition.arrLength > 1)
+                {
+                    var constructorParameters = new Type[] { };
+                    var constructorInfo = typeof(CardinalityAttribute).GetConstructor(constructorParameters);
+                    var displayNameAttributeBuilder = new CustomAttributeBuilder(constructorInfo, new object[] { fieldDefinition.arrLength });
                     field.SetCustomAttribute(displayNameAttributeBuilder);
                 }
             }
