@@ -36,7 +36,7 @@ namespace DBCD
         }
     }
 
-    public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>
+    public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>, ILookup<int, DBCDRow>
     {
         string[] AvailableColumns { get; }
 
@@ -64,6 +64,7 @@ namespace DBCD
         IEnumerable<dynamic> IDBCDStorage.Values => this.DynamicValues;
         IEnumerable<int> IDBCDStorage.Keys => this.Keys;
 
+        IEnumerable<DBCDRow> ILookup<int, DBCDRow>.this[int key] => this.DynamicValues.Where(row => row.ID == key);
 
         IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()
         {
@@ -73,6 +74,16 @@ namespace DBCD
         public override string ToString()
         {
             return $"{this.tableName}";
+        }
+
+        public bool Contains(int key)
+        {
+            return this.Keys.Contains(key);
+        }
+
+        IEnumerator<IGrouping<int, DBCDRow>> IEnumerable<IGrouping<int, DBCDRow>>.GetEnumerator()
+        {
+            return this.DynamicValues.GroupBy(row => row.ID).GetEnumerator();
         }
     }
 }
