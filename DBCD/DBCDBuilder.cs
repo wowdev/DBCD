@@ -81,7 +81,7 @@ namespace DBCD
 
                 if(fieldDefinition.arrLength > 1)
                 {
-                    var constructorParameters = new Type[] { };
+                    var constructorParameters = new Type[] { typeof(int) };
                     var constructorInfo = typeof(CardinalityAttribute).GetConstructor(constructorParameters);
                     var displayNameAttributeBuilder = new CustomAttributeBuilder(constructorInfo, new object[] { fieldDefinition.arrLength });
                     field.SetCustomAttribute(displayNameAttributeBuilder);
