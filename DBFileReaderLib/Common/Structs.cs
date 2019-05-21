@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 #pragma warning disable CS0649
 #pragma warning disable IDE0044
@@ -60,7 +61,7 @@ namespace DBFileReaderLib.Common
             unsafe
             {
                 fixed (byte* ptr = Value)
-                    return FastStruct<T>.ArrayToStructure(ref ptr[0]);
+                    return Unsafe.ReadUnaligned<T>(ptr);
             }
         }
     }
@@ -74,7 +75,7 @@ namespace DBFileReaderLib.Common
             unsafe
             {
                 fixed (byte* ptr = Value)
-                    return FastStruct<T>.ArrayToStructure(ref ptr[0]);
+                    return Unsafe.ReadUnaligned<T>(ptr);
             }
         }
     }

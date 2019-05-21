@@ -300,7 +300,6 @@ namespace DBFileReaderLib.Readers
                 }
 
                 int position = 0;
-                _Records.EnsureCapacity(RecordsCount);
                 for (int i = 0; i < RecordsCount; i++)
                 {
                     BitReader bitReader = new BitReader(recordsData) { Position = 0 };

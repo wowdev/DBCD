@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using DBFileReaderLib.Common;
 
@@ -88,14 +89,14 @@ namespace DBFileReaderLib.Readers
 
         private static T GetFieldValue<T>(BitReader r) where T : struct
         {
-            return r.ReadValue64(FastStruct<T>.Size * 8).GetValue<T>();
+            return r.ReadValue64(Unsafe.SizeOf<T>() * 8).GetValue<T>();
         }
 
         private static T[] GetFieldValueArray<T>(BitReader r, int cardinality) where T : struct
         {
             T[] array = new T[cardinality];
             for (int i = 0; i < array.Length; i++)
-                array[i] = r.ReadValue64(FastStruct<T>.Size * 8).GetValue<T>();
+                array[i] = r.ReadValue64(Unsafe.SizeOf<T>() * 8).GetValue<T>();
 
             return array;
         }
@@ -136,7 +137,6 @@ namespace DBFileReaderLib.Readers
                 recordsData = reader.ReadBytes(RecordsCount * RecordSize);
                 Array.Resize(ref recordsData, recordsData.Length + 8); // pad with extra zeros so we don't crash when reading
 
-                _Records.EnsureCapacity(RecordsCount);
                 for (int i = 0; i < RecordsCount; i++)
                 {
                     BitReader bitReader = new BitReader(recordsData) { Position = i * RecordSize * 8 };

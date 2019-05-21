@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using DBFileReaderLib.Common;
 
@@ -171,7 +172,7 @@ namespace DBFileReaderLib.Readers
                         if (bitSize <= 0)
                             bitSize = columnMeta.Immediate.BitWidth;
 
-                        array = new T[columnMeta.Size / (FastStruct<T>.Size * 8)];
+                        array = new T[columnMeta.Size / (Unsafe.SizeOf<T>() * 8)];
                         for (int i = 0; i < array.Length; i++)
                             array[i] = r.ReadValue64(bitSize).GetValue<T>();
 
@@ -202,7 +203,7 @@ namespace DBFileReaderLib.Readers
                     if (bitSize <= 0)
                         bitSize = columnMeta.Immediate.BitWidth;
 
-                    string[] array = new string[columnMeta.Size / (FastStruct<int>.Size * 8)];
+                    string[] array = new string[columnMeta.Size / (sizeof(int) * 8)];
                     for (int i = 0; i < array.Length; i++)
                     {
                         int offSet = recordsOffset + r.Offset + (r.Position >> 3);
@@ -261,8 +262,6 @@ namespace DBFileReaderLib.Readers
 
                 if (sectionsCount == 0 || RecordsCount == 0)
                     return;
-
-                _Records.EnsureCapacity(RecordsCount);
 
                 SectionHeaderWDC3[] sections = reader.ReadArray<SectionHeaderWDC3>(sectionsCount);
 
@@ -338,7 +337,6 @@ namespace DBFileReaderLib.Readers
                         if (m_copyData == null)
                             m_copyData = new Dictionary<int, int>();
 
-                        m_copyData.EnsureCapacity(m_copyData.Count + sections[sectionIndex].CopyTableCount);
                         for (int i = 0; i < sections[sectionIndex].CopyTableCount; i++)
                             m_copyData[reader.ReadInt32()] = reader.ReadInt32();
                     }

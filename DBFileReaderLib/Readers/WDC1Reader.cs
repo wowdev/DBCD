@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using DBFileReaderLib.Common;
@@ -164,7 +165,7 @@ namespace DBFileReaderLib.Readers
                         if (bitSize <= 0)
                             bitSize = columnMeta.Immediate.BitWidth;
 
-                        array = new T[columnMeta.Size / (FastStruct<T>.Size * 8)];
+                        array = new T[columnMeta.Size / (Unsafe.SizeOf<T>() * 8)];
 
                         for (int i = 0; i < array.Length; i++)
                             array[i] = r.ReadValue64(bitSize).GetValue<T>();
@@ -331,7 +332,6 @@ namespace DBFileReaderLib.Readers
                 }
 
                 int position = 0;
-                _Records.EnsureCapacity(RecordsCount);
                 for (int i = 0; i < RecordsCount; i++)
                 {
                     BitReader bitReader = new BitReader(recordsData) { Position = 0 };

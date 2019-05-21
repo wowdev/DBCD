@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -22,9 +23,8 @@ namespace DBFileReaderLib
 
         public static T Read<T>(this BinaryReader reader) where T : struct
         {
-            byte[] result = reader.ReadBytes(FastStruct<T>.Size);
-
-            return FastStruct<T>.ArrayToStructure(result);
+            byte[] result = reader.ReadBytes(Unsafe.SizeOf<T>());
+            return Unsafe.ReadUnaligned<T>(ref result[0]);
         }
 
         public static T[] ReadArray<T>(this BinaryReader reader) where T : struct
@@ -34,7 +34,7 @@ namespace DBFileReaderLib
             byte[] result = reader.ReadBytes(numBytes);
 
             reader.BaseStream.Position += (0 - numBytes) & 0x07;
-            return FastStruct<T>.ReadArray(result);
+            return result.CopyTo<T>();
         }
 
         public static T[] ReadArray<T>(this BinaryReader reader, int size) where T : struct
@@ -42,8 +42,17 @@ namespace DBFileReaderLib
             int numBytes = Marshal.SizeOf<T>() * size;
 
             byte[] result = reader.ReadBytes(numBytes);
+            return result.CopyTo<T>();
+        }
 
-            return FastStruct<T>.ReadArray(result);
+        public static unsafe T[] CopyTo<T>(this byte[] src) where T : struct
+        {
+            T[] result = new T[src.Length / Unsafe.SizeOf<T>()];
+
+            if (src.Length > 0)
+                Unsafe.CopyBlockUnaligned(Unsafe.AsPointer(ref result[0]), Unsafe.AsPointer(ref src[0]), (uint)src.Length);
+
+            return result;
         }
 
         public static bool HasFlagExt(this DB2Flags flag, DB2Flags valueToCheck)

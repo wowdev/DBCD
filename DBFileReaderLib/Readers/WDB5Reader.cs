@@ -235,7 +235,6 @@ namespace DBFileReaderLib.Readers
                     m_copyData[reader.ReadInt32()] = reader.ReadInt32();
 
                 int position = 0;
-                _Records.EnsureCapacity(RecordsCount);
                 for (int i = 0; i < RecordsCount; i++)
                 {
                     BitReader bitReader = new BitReader(recordsData) { Position = 0 };

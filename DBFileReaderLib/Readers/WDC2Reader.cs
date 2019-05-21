@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using DBFileReaderLib.Common;
 
@@ -187,7 +188,7 @@ namespace DBFileReaderLib.Readers
                         if (bitSize <= 0)
                             bitSize = columnMeta.Immediate.BitWidth;
 
-                        array = new T[columnMeta.Size / (FastStruct<T>.Size * 8)];
+                        array = new T[columnMeta.Size / (Unsafe.SizeOf<T>() * 8)];
                         for (int i = 0; i < array.Length; i++)
                             array[i] = r.ReadValue64(bitSize).GetValue<T>();
 
@@ -219,7 +220,7 @@ namespace DBFileReaderLib.Readers
                     if (bitSize <= 0)
                         bitSize = columnMeta.Immediate.BitWidth;
 
-                    string[] array = new string[columnMeta.Size / (FastStruct<int>.Size * 8)];
+                    string[] array = new string[columnMeta.Size / (sizeof(int) * 8)];
                     for (int i = 0; i < array.Length; i++)
                     {
                         int offSet = recordsOffset + r.Offset + (r.Position >> 3);
@@ -281,8 +282,6 @@ namespace DBFileReaderLib.Readers
 
                 if (sectionsCount == 0 || RecordsCount == 0)
                     return;
-
-                _Records.EnsureCapacity(RecordsCount);
 
                 SectionHeader[] sections = reader.ReadArray<SectionHeader>(sectionsCount);
 
