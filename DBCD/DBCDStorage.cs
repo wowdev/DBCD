@@ -1,3 +1,4 @@
+using DBCD.Helpers;
 using DBFileReaderLib;
 using System.Collections.Generic;
 using System.Dynamic;
@@ -11,16 +12,18 @@ namespace DBCD
         public int ID;
 
         private readonly dynamic raw;
+        private readonly FieldAccessor fieldAccessor;
 
-        internal DBCDRow(dynamic raw)
+        internal DBCDRow(dynamic raw, FieldAccessor fieldAccessor)
         {
             this.raw = raw;
+            this.fieldAccessor = fieldAccessor;
             this.ID = raw.ID;
         }
 
         public override bool TryGetMember(GetMemberBinder binder, out object result)
         {
-            return this.raw.TryGetMember(binder, out result);
+            return fieldAccessor.TryGetMember(this.raw, binder.Name, out result);
         }
     }
 
@@ -49,6 +52,8 @@ namespace DBCD
     {
         private readonly string[] availableColumns;
         private readonly string tableName;
+        private readonly FieldAccessor fieldAccessor;
+
         string[] IDBCDStorage.AvailableColumns => this.availableColumns;
 
         public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBReader(stream), info) { }
@@ -57,10 +62,11 @@ namespace DBCD
         {
             this.availableColumns = info.availableColumns;
             this.tableName = info.tableName;
+            this.fieldAccessor = new FieldAccessor(typeof(T));
         }
 
 
-        private IEnumerable<DBCDRow> DynamicValues => this.Values.Select(row => new DBCDRow(row));
+        private IEnumerable<DBCDRow> DynamicValues => this.Values.Select(row => new DBCDRow(row, fieldAccessor));
         IEnumerable<dynamic> IDBCDStorage.Values => this.DynamicValues;
         IEnumerable<int> IDBCDStorage.Keys => this.Keys;
 
