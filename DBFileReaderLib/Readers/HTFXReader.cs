@@ -17,7 +17,7 @@ namespace DBFileReaderLib.Readers
         public int Id { get; set; }
         public BitReader Data { get => m_data; set => m_data = value; }
 
-        public int Index => m_hotfixEntry.Index;
+        public int PushId => m_hotfixEntry.PushId;
         public uint TableHash => m_hotfixEntry.TableHash;
         public int RecordId => m_hotfixEntry.RecordId;
         public bool IsValid => m_hotfixEntry.IsValid;

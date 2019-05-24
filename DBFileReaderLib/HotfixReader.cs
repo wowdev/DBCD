@@ -49,7 +49,7 @@ namespace DBFileReaderLib
                 fieldCache[dbReader.IdFieldIndex].IndexMapField = true;
 
             // TODO verify hotfixes need to be applied sequentially
-            var records = _reader.GetRecords(dbReader.TableHash).OrderBy(x => x.Index);
+            var records = _reader.GetRecords(dbReader.TableHash).OrderBy(x => x.PushId);
 
             foreach (var row in records)
             {

@@ -4,7 +4,7 @@ namespace DBFileReaderLib.Common
 {
     interface IHotfixEntry
     {
-        int Index { get; }
+        int PushId { get; }
         int DataSize { get; }
         uint TableHash { get; }
         int RecordId { get; }
@@ -13,7 +13,7 @@ namespace DBFileReaderLib.Common
 
     struct HotfixEntryV1 : IHotfixEntry
     {
-        public int Index { get; }
+        public int PushId { get; }
         public int DataSize { get; }
         public uint TableHash { get; }
         public int RecordId { get; }
@@ -24,8 +24,8 @@ namespace DBFileReaderLib.Common
 
     struct HotfixEntryV2 : IHotfixEntry
     {
-        public uint Region { get; }
-        public int Index { get; }
+        public uint Version { get; }
+        public int PushId { get; }
         public int DataSize { get; }
         public uint TableHash { get; }
         public int RecordId { get; }
@@ -36,7 +36,7 @@ namespace DBFileReaderLib.Common
 
     struct HotfixEntryV7 : IHotfixEntry
     {
-        public int Index { get; }
+        public int PushId { get; }
         public uint TableHash { get; }
         public int RecordId { get; }
         public int DataSize { get; }
