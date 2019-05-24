@@ -24,7 +24,7 @@ namespace DBFileReaderLib.Readers
         private readonly ColumnMetaData[] m_columnMeta;
         private readonly Value32[][] m_palletData;
         private readonly Dictionary<int, Value32>[] m_commonData;
-        private ReferenceEntry? m_refData;
+        private readonly ReferenceEntry? m_refData;
 
         public WDC3Row(BaseReader reader, BitReader data, int recordsOffset, int id, ReferenceEntry? refData, int recordIndex)
         {

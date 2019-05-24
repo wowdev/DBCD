@@ -137,4 +137,5 @@ namespace DBFileReaderLib.Common
         public int OffsetMapIDCount;
         public int CopyTableCount;
     }
+
 }

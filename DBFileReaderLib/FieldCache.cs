@@ -8,9 +8,9 @@ namespace DBFileReaderLib
     {
         public readonly FieldInfo Field;
         public readonly bool IsArray = false;
-        public readonly bool IndexMapField = false;
         public readonly Action<T, object> Setter;
 
+        public bool IndexMapField { get; set; } = false;
         public int Cardinality { get; set; } = 1;
 
         public FieldCache(FieldInfo field)

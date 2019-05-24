@@ -90,9 +90,11 @@ namespace DBCD
             var type = typeBuilder.CreateTypeInfo();
             var columns = fields.Select(field => field.name).ToArray();
 
-            var info = new DBCDInfo();
-            info.availableColumns = columns;
-            info.tableName = name;
+            var info = new DBCDInfo
+            {
+                availableColumns = columns,
+                tableName = name
+            };
 
             return new Tuple<Type, DBCDInfo>(type, info);
         }
