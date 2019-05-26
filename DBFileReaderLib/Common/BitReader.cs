@@ -58,7 +58,7 @@ namespace DBFileReaderLib.Common
             unsafe
             {
                 ulong result = ReadUInt64(numBits);
-                ulong signedShift = (1UL << (numBits - 1));
+                ulong signedShift = 1UL << (numBits - 1);
                 result = (signedShift ^ result) - signedShift;
                 return *(Value64*)&result;
             }
@@ -73,6 +73,25 @@ namespace DBFileReaderLib.Common
                 bytes.Add((byte)num);
 
             return Encoding.UTF8.GetString(bytes.ToArray());
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 0;
+                for (int i = 0; i < m_array.Length; i++)
+                {
+                    hash += m_array[i];
+                    hash += hash << 10;
+                    hash ^= hash >> 6;
+                }
+
+                hash += hash << 3;
+                hash ^= hash >> 11;
+                hash += hash << 15;
+                return hash;
+            }
         }
     }
 }

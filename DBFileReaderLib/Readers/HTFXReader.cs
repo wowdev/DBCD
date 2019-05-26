@@ -9,7 +9,7 @@ using System.Text;
 
 namespace DBFileReaderLib.Readers
 {
-    class HTFXRow : IDBRow, IHotfixEntry
+    class HTFXRow : IDBRow, IHotfixEntry, IEquatable<HTFXRow>
     {
         private BitReader m_data;
         private readonly IHotfixEntry m_hotfixEntry;
@@ -107,10 +107,39 @@ namespace DBFileReaderLib.Readers
             return array;
         }
 
+
+        #region Interface Methods
+
         public IDBRow Clone()
         {
             return (IDBRow)MemberwiseClone();
         }
+        
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = (hash * 486187739) + PushId;
+                hash = (hash * 486187739) + TableHash.GetHashCode();
+                hash = (hash * 486187739) + RecordId;
+                hash = (hash * 486187739) + (IsValid ? 1 : 0);
+                hash = (hash * 486187739) + DataSize;
+                hash = (hash * 486187739) + m_data.GetHashCode();
+                return hash;
+            }
+        }
+
+        public bool Equals(HTFXRow other)
+        {
+            return PushId == other.PushId &&
+                   TableHash == other.TableHash &&
+                   RecordId == other.RecordId &&
+                   IsValid == other.IsValid &&
+                   DataSize == other.DataSize;
+        }
+
+        #endregion
     }
 
     class HTFXReader : BaseReader
@@ -171,6 +200,21 @@ namespace DBFileReaderLib.Readers
             foreach (HTFXRow record in _Records.Values)
                 if (record.TableHash == tablehash)
                     yield return record;
+        }
+
+        public void Combine(HTFXReader reader)
+        {
+            var lookup = new HashSet<HTFXRow>(_Records.Values.Cast<HTFXRow>());
+
+            // copy records not in the current set
+            foreach (HTFXRow row in reader._Records.Values)
+            {
+                if (!lookup.Contains(row))
+                {
+                    _Records.Add(_Records.Count, row);
+                    lookup.Add(row);
+                }
+            }
         }
 
 
