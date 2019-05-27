@@ -25,6 +25,11 @@ namespace DBCD
         {
             return fieldAccessor.TryGetMember(this.raw, binder.Name, out result);
         }
+
+        public object this[string fieldName]
+        {
+            get => fieldAccessor[this.raw, fieldName];
+        }
     }
 
     public class DynamicKeyValuePair<T>
