@@ -15,7 +15,7 @@ namespace DBCD
             this.dbdProvider = dbdProvider;
         }
 
-        public IDBCDStorage Load(string tableName)
+        public IDBCDStorage Load(string tableName, string build = null)
         {
             var dbcStream = this.dbcProvider.StreamForTableName(tableName);
             var dbdStream = this.dbdProvider.StreamForTableName(tableName);
@@ -23,7 +23,7 @@ namespace DBCD
             var builder = new DBCDBuilder();
 
             var dbReader = new DBReader(dbcStream);
-            var definition = builder.Build(dbReader, dbdStream, tableName);
+            var definition = builder.Build(dbReader, dbdStream, tableName, build);
 
             var type = typeof(DBCDStorage<>).MakeGenericType(definition.Item1);
 
