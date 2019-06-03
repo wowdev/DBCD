@@ -17,8 +17,8 @@ namespace DBCD
 
         public IDBCDStorage Load(string tableName, string build = null)
         {
-            var dbcStream = this.dbcProvider.StreamForTableName(tableName);
-            var dbdStream = this.dbdProvider.StreamForTableName(tableName);
+            var dbcStream = this.dbcProvider.StreamForTableName(tableName, build);
+            var dbdStream = this.dbdProvider.StreamForTableName(tableName, build);
 
             var builder = new DBCDBuilder();
 
