@@ -1,10 +1,10 @@
-﻿using System;
+﻿using DBFileReaderLib.Common;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using DBFileReaderLib.Common;
 
 namespace DBFileReaderLib.Readers
 {
@@ -47,7 +47,7 @@ namespace DBFileReaderLib.Readers
             [typeof(ushort)] = (id, data, fieldMeta, commonData, stringTable, header) => GetFieldValue<ushort>(id, data, fieldMeta, commonData),
             [typeof(sbyte)] = (id, data, fieldMeta, commonData, stringTable, header) => GetFieldValue<sbyte>(id, data, fieldMeta, commonData),
             [typeof(byte)] = (id, data, fieldMeta, commonData, stringTable, header) => GetFieldValue<byte>(id, data, fieldMeta, commonData),
-            [typeof(string)] = (id, data, fieldMeta, commonData, stringTable, header) => stringTable[GetFieldValue<int>(id, data, fieldMeta, commonData)],
+            [typeof(string)] = (id, data, fieldMeta, commonData, stringTable, header) => header.Flags.HasFlagExt(DB2Flags.Sparse) ? data.ReadCString() : stringTable[GetFieldValue<int>(id, data, fieldMeta, commonData)],
         };
 
         private static Dictionary<Type, Func<int, BitReader, FieldMetaData, Dictionary<int, Value32>, Dictionary<long, string>, int, object>> arrayReaders = new Dictionary<Type, Func<int, BitReader, FieldMetaData, Dictionary<int, Value32>, Dictionary<long, string>, int, object>>

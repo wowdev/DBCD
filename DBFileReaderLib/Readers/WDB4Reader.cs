@@ -41,7 +41,7 @@ namespace DBFileReaderLib.Readers
             [typeof(ushort)] = (data, stringTable, header) => GetFieldValue<ushort>(data),
             [typeof(sbyte)] = (data, stringTable, header) => GetFieldValue<sbyte>(data),
             [typeof(byte)] = (data, stringTable, header) => GetFieldValue<byte>(data),
-            [typeof(string)] = (data, stringTable, header) => stringTable[GetFieldValue<int>(data)],
+            [typeof(string)] = (data, stringTable, header) => header.Flags.HasFlagExt(DB2Flags.Sparse) ? data.ReadCString() : stringTable[GetFieldValue<int>(data)],
         };
 
         private static Dictionary<Type, Func<BitReader, Dictionary<long, string>, int, object>> arrayReaders = new Dictionary<Type, Func<BitReader, Dictionary<long, string>, int, object>>
