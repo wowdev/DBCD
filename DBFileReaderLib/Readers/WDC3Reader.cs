@@ -297,9 +297,6 @@ namespace DBFileReaderLib.Readers
 
                 for (int sectionIndex = 0; sectionIndex < sectionsCount; sectionIndex++)
                 {
-                    if (sections[sectionIndex].TactKeyLookup != 0)
-                        continue;
-
                     reader.BaseStream.Position = sections[sectionIndex].FileOffset;
 
                     if (!Flags.HasFlagExt(DB2Flags.Sparse))
@@ -327,6 +324,10 @@ namespace DBFileReaderLib.Readers
                         if (reader.BaseStream.Position != sections[sectionIndex].OffsetRecordsEndOffset)
                             throw new Exception("reader.BaseStream.Position != sections[sectionIndex].OffsetRecordsEndOffset");
                     }
+
+                    // skip encrypted sections => has tact key + record data is zero filled
+                    if (sections[sectionIndex].TactKeyLookup != 0 && Array.TrueForAll(recordsData, x => x == 0))
+                        continue;
 
                     // index data
                     m_indexData = reader.ReadArray<int>(sections[sectionIndex].IndexDataSize / 4);
@@ -388,7 +389,7 @@ namespace DBFileReaderLib.Readers
                             bitReader.Offset = i * RecordSize;
 
                         IDBRow rec = new WDC3Row(this, bitReader, sections[sectionIndex].FileOffset, indexDataNotEmpty ? m_indexData[i] : -1, refData?.Entries.ElementAtOrDefault(i), i);
-                        _Records.Add(i, rec);
+                        _Records.Add(_Records.Count, rec);
                     }
                 }
             }
