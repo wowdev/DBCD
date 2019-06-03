@@ -1,12 +1,11 @@
+using DBDefsLib;
+using DBFileReaderLib;
+using DBFileReaderLib.Attributes;
 using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-
-using DBFileReaderLib;
-using DBFileReaderLib.Attributes;
-using DBDefsLib;
 
 namespace DBCD
 {
@@ -79,17 +78,17 @@ namespace DBCD
 
                 if (fieldDefinition.isID)
                 {
-                    AddIndexAttribute(field);
+                    AddAttribute<IndexAttribute>(field);
                 }
 
-                if(fieldDefinition.arrLength > 1)
+                if (fieldDefinition.arrLength > 1)
                 {
-                    AddCardinalityAttribute(field, fieldDefinition.arrLength);
+                    AddAttribute<CardinalityAttribute>(field, fieldDefinition.arrLength);
                 }
 
-                if(isLocalisedString)
+                if (isLocalisedString)
                 {
-                    AddCardinalityAttribute(field, locStringSize);
+                    AddAttribute<CardinalityAttribute>(field, locStringSize);
                     typeBuilder.DefineField(fieldDefinition.name + "_mask", typeof(uint), FieldAttributes.Public);
                 }
             }
@@ -116,20 +115,12 @@ namespace DBCD
             return 8;
         }
 
-        private void AddIndexAttribute(FieldBuilder field)
+        private void AddAttribute<T>(FieldBuilder field, params object[] parameters) where T : Attribute
         {
-            var constructorParameters = new Type[] { };
-            var constructorInfo = typeof(IndexAttribute).GetConstructor(constructorParameters);
-            var displayNameAttributeBuilder = new CustomAttributeBuilder(constructorInfo, new object[] { });
-            field.SetCustomAttribute(displayNameAttributeBuilder);
-        }
-
-        private void AddCardinalityAttribute(FieldBuilder field, int length)
-        {
-            var constructorParameters = new Type[] { typeof(int) };
-            var constructorInfo = typeof(CardinalityAttribute).GetConstructor(constructorParameters);
-            var displayNameAttributeBuilder = new CustomAttributeBuilder(constructorInfo, new object[] { length });
-            field.SetCustomAttribute(displayNameAttributeBuilder);
+            var constructorParameters = parameters.Select(x => x.GetType()).ToArray();
+            var constructorInfo = typeof(T).GetConstructor(constructorParameters);
+            var attributeBuilder = new CustomAttributeBuilder(constructorInfo, parameters);
+            field.SetCustomAttribute(attributeBuilder);
         }
 
         private Type FieldDefinitionToType(Structs.Definition field, Structs.ColumnDefinition column)
