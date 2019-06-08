@@ -67,7 +67,6 @@ namespace DBFileReaderLib.Readers
             foreach (var copyRow in m_copyData)
             {
                 IDBRow rec = _Records[copyRow.Value].Clone();
-                rec.Data = new BitReader(recordsData);
                 rec.Id = copyRow.Key;
                 _Records[rec.Id] = rec;
                 yield return rec;
