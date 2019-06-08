@@ -1,10 +1,10 @@
-﻿using System;
+﻿using DBFileReaderLib.Common;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using DBFileReaderLib.Common;
 
 namespace DBFileReaderLib.Readers
 {
@@ -307,7 +307,9 @@ namespace DBFileReaderLib.Readers
                         Array.Resize(ref recordsData, recordsData.Length + 8); // pad with extra zeros so we don't crash when reading
 
                         // string data
-                        m_stringsTable = new Dictionary<long, string>(sections[sectionIndex].StringTableSize / 0x20);
+                        if (m_stringsTable == null)
+                            m_stringsTable = new Dictionary<long, string>(sections[sectionIndex].StringTableSize / 0x20);
+
                         long stringDataOffset = (RecordsCount - sections[sectionIndex].NumRecords) * RecordSize;
                         for (int i = 0; i < sections[sectionIndex].StringTableSize;)
                         {
@@ -342,14 +344,14 @@ namespace DBFileReaderLib.Readers
                             m_copyData[reader.ReadInt32()] = reader.ReadInt32();
                     }
 
-                    if (sections[sectionIndex].OffsetMapIDCount > 0 )
+                    if (sections[sectionIndex].OffsetMapIDCount > 0)
                     {
                         // HACK unittestsparse is malformed and has sparseIndexData first
                         if (TableHash == 145293629)
                             reader.BaseStream.Position += 4 * sections[sectionIndex].OffsetMapIDCount;
 
                         SparseEntries = reader.ReadArray<SparseEntry>(sections[sectionIndex].OffsetMapIDCount);
-                    }                        
+                    }
 
                     // reference data
                     ReferenceData refData = null;
