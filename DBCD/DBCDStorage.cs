@@ -14,11 +14,11 @@ namespace DBCD
         private readonly dynamic raw;
         private readonly FieldAccessor fieldAccessor;
 
-        internal DBCDRow(dynamic raw, FieldAccessor fieldAccessor)
+        internal DBCDRow(int ID, dynamic raw, FieldAccessor fieldAccessor)
         {
             this.raw = raw;
             this.fieldAccessor = fieldAccessor;
-            this.ID = raw.ID;
+            this.ID = ID;
         }
 
         public override bool TryGetMember(GetMemberBinder binder, out object result)
@@ -44,16 +44,18 @@ namespace DBCD
         }
     }
 
-    public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>, ILookup<int, DBCDRow>
+    public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>
     {
         string[] AvailableColumns { get; }
 
         IEnumerable<dynamic> Values { get; }
 
         IEnumerable<int> Keys { get; }
+
+        DBCDRow this[int Key] { get; }
     }
 
-    public class DBCDStorage<T> : Storage<T>, IDBCDStorage where T : class, new()
+    public class DBCDStorage<T> : Dictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
     {
         private readonly string[] availableColumns;
         private readonly string tableName;
@@ -63,38 +65,31 @@ namespace DBCD
 
         public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBReader(stream), info) { }
 
-        public DBCDStorage(DBReader dbReader, DBCDInfo info) : base(dbReader)
+        public DBCDStorage(DBReader dbReader, DBCDInfo info)
         {
             this.availableColumns = info.availableColumns;
             this.tableName = info.tableName;
             this.fieldAccessor = new FieldAccessor(typeof(T));
+
+            // populate the collection so we don't iterate all values and create new rows each time
+            var records = dbReader.GetRecords<T>();
+            foreach (var record in records)
+                this.Add(record.Key, new DBCDRow(record.Key, record.Value, fieldAccessor));
         }
 
+        IEnumerable<dynamic> IDBCDStorage.Values => this.Values;
 
-        private IEnumerable<DBCDRow> DynamicValues => this.Values.Select(row => new DBCDRow(row, fieldAccessor));
-        IEnumerable<dynamic> IDBCDStorage.Values => this.DynamicValues;
         IEnumerable<int> IDBCDStorage.Keys => this.Keys;
-
-        IEnumerable<DBCDRow> ILookup<int, DBCDRow>.this[int key] => this.DynamicValues.Where(row => row.ID == key);
 
         IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()
         {
-            return this.DynamicValues.Select(row => new DynamicKeyValuePair<int>(row.ID, row)).GetEnumerator();
+            var enumerator = GetEnumerator();
+            while (enumerator.MoveNext())
+                yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
         }
 
-        public override string ToString()
-        {
-            return $"{this.tableName}";
-        }
+        public override string ToString() => $"{this.tableName}";
 
-        public bool Contains(int key)
-        {
-            return this.Keys.Contains(key);
-        }
-
-        IEnumerator<IGrouping<int, DBCDRow>> IEnumerable<IGrouping<int, DBCDRow>>.GetEnumerator()
-        {
-            return this.DynamicValues.GroupBy(row => row.ID).GetEnumerator();
-        }
+        public bool Contains(int key) => this.Keys.Contains(key);
     }
 }
