@@ -44,15 +44,9 @@ namespace DBCD
         }
     }
 
-    public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>
+    public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>, IDictionary<int, DBCDRow>
     {
         string[] AvailableColumns { get; }
-
-        IEnumerable<dynamic> Values { get; }
-
-        IEnumerable<int> Keys { get; }
-
-        DBCDRow this[int Key] { get; }
     }
 
     public class DBCDStorage<T> : Dictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
@@ -77,10 +71,6 @@ namespace DBCD
                 this.Add(record.Key, new DBCDRow(record.Key, record.Value, fieldAccessor));
         }
 
-        IEnumerable<dynamic> IDBCDStorage.Values => this.Values;
-
-        IEnumerable<int> IDBCDStorage.Keys => this.Keys;
-
         IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()
         {
             var enumerator = GetEnumerator();
@@ -90,6 +80,5 @@ namespace DBCD
 
         public override string ToString() => $"{this.tableName}";
 
-        public bool Contains(int key) => this.Keys.Contains(key);
     }
 }
