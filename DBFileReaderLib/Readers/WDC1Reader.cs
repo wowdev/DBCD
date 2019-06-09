@@ -149,6 +149,14 @@ namespace DBFileReaderLib.Readers
                         uint palletIndex = r.ReadUInt32(columnMeta.Pallet.BitWidth);
                         return palletData[palletIndex].GetValue<T>();
                     }
+                case CompressionType.PalletArray:
+                    {
+                        if (columnMeta.Pallet.Cardinality != 1)
+                            break;
+
+                        uint palletArrayIndex = r.ReadUInt32(columnMeta.Pallet.BitWidth);
+                        return palletData[(int)palletArrayIndex].GetValue<T>();
+                    }
             }
 
             throw new Exception(string.Format("Unexpected compression type {0}", columnMeta.CompressionType));
