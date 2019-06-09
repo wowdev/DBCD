@@ -360,6 +360,10 @@ namespace DBFileReaderLib.Readers
                     // index data
                     m_indexData = reader.ReadArray<int>(sections[sectionIndex].IndexDataSize / 4);
 
+                    // fix zero-filled index data
+                    if (m_indexData.Length > 0 && m_indexData.All(x => x == 0))
+                        m_indexData = Enumerable.Range(MinIndex, MaxIndex).ToArray();
+
                     // duplicate rows data
                     m_copyData = new Dictionary<int, int>(sections[sectionIndex].CopyTableSize / 8);
                     for (int i = 0; i < sections[sectionIndex].CopyTableSize / 8; i++)
