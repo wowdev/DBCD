@@ -14,7 +14,7 @@ namespace DBCD.Providers
             client.BaseAddress = BaseURI;
         }
 
-        public Stream StreamForTableName(string tableName)
+        public Stream StreamForTableName(string tableName, string build = null)
         {
             var query = $"{tableName}.dbd";
             var bytes = client.GetByteArrayAsync(query).Result;

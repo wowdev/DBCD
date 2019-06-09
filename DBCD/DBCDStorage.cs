@@ -1,9 +1,9 @@
-using System.IO;
-using System.Linq;
+using DBCD.Helpers;
+using DBFileReaderLib;
 using System.Collections.Generic;
 using System.Dynamic;
-
-using DB2FileReaderLib.NET;
+using System.IO;
+using System.Linq;
 
 namespace DBCD
 {
@@ -11,17 +11,24 @@ namespace DBCD
     {
         public int ID;
 
-        private dynamic raw;
+        private readonly dynamic raw;
+        private readonly FieldAccessor fieldAccessor;
 
-        internal DBCDRow(dynamic raw)
+        internal DBCDRow(int ID, dynamic raw, FieldAccessor fieldAccessor)
         {
             this.raw = raw;
-            this.ID = raw.ID;
+            this.fieldAccessor = fieldAccessor;
+            this.ID = ID;
         }
 
         public override bool TryGetMember(GetMemberBinder binder, out object result)
         {
-            return this.raw.TryGetMember(binder, out result);
+            return fieldAccessor.TryGetMember(this.raw, binder.Name, out result);
+        }
+
+        public object this[string fieldName]
+        {
+            get => fieldAccessor[this.raw, fieldName];
         }
     }
 
@@ -37,52 +44,41 @@ namespace DBCD
         }
     }
 
-    public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>, ILookup<int, DBCDRow>
+    public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>, IDictionary<int, DBCDRow>
     {
-        string[] availableColumns { get; }
-
-        IEnumerable<dynamic> Values { get; }
-
-        IEnumerable<int> Keys { get; }
+        string[] AvailableColumns { get; }
     }
 
-    public class DBCDStorage<T> : Storage<T>, IDBCDStorage where T : class, new()
+    public class DBCDStorage<T> : Dictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
     {
-        private string[] availableColumns;
-        private string tableName;
-        string[] IDBCDStorage.availableColumns => this.availableColumns;
+        private readonly string[] availableColumns;
+        private readonly string tableName;
+        private readonly FieldAccessor fieldAccessor;
 
-        public DBCDStorage(Stream stream, DBCDInfo info) : base(stream)
+        string[] IDBCDStorage.AvailableColumns => this.availableColumns;
+
+        public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBReader(stream), info) { }
+
+        public DBCDStorage(DBReader dbReader, DBCDInfo info)
         {
             this.availableColumns = info.availableColumns;
             this.tableName = info.tableName;
+            this.fieldAccessor = new FieldAccessor(typeof(T));
+
+            // populate the collection so we don't iterate all values and create new rows each time
+            var records = dbReader.GetRecords<T>();
+            foreach (var record in records)
+                this.Add(record.Key, new DBCDRow(record.Key, record.Value, fieldAccessor));
         }
-
-
-        private IEnumerable<DBCDRow> DynamicValues => this.Values.Select(row => new DBCDRow(row));
-        IEnumerable<dynamic> IDBCDStorage.Values => this.DynamicValues;
-        IEnumerable<int> IDBCDStorage.Keys => this.Keys;
-
-        IEnumerable<DBCDRow> ILookup<int, DBCDRow>.this[int key] => this.DynamicValues.Where(row => row.ID == key);
 
         IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()
         {
-            return this.DynamicValues.Select(row => new DynamicKeyValuePair<int>(row.ID, row)).GetEnumerator();
+            var enumerator = GetEnumerator();
+            while (enumerator.MoveNext())
+                yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
         }
 
-        public override string ToString()
-        {
-            return $"{this.tableName}";
-        }
+        public override string ToString() => $"{this.tableName}";
 
-        public bool Contains(int key)
-        {
-            return this.Keys.Contains(key);
-        }
-
-        IEnumerator<IGrouping<int, DBCDRow>> IEnumerable<IGrouping<int, DBCDRow>>.GetEnumerator()
-        {
-            return this.DynamicValues.GroupBy(row => row.ID).GetEnumerator();
-        }
     }
 }

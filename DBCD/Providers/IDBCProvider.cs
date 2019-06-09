@@ -4,6 +4,6 @@ namespace DBCD.Providers
 {
     public interface IDBCProvider
     {
-        Stream StreamForTableName(string tableName);
+        Stream StreamForTableName(string tableName, string build);
     }
 }
