@@ -85,6 +85,7 @@ namespace DBFileReaderLib.Common
                     hash += m_array[i];
                     hash += hash << 10;
                     hash ^= hash >> 6;
+
                 }
 
                 hash += hash << 3;
@@ -93,5 +94,7 @@ namespace DBFileReaderLib.Common
                 return hash;
             }
         }
+
+        public BitReader Clone() => new BitReader(m_array);
     }
 }

@@ -52,7 +52,7 @@ namespace DBFileReaderLib.Readers
 
         public void Enumerate(Action<IDBRow> action)
         {
-            Parallel.ForEach(_Records.Values, action);
+            Parallel.ForEach(_Records.Values, new ParallelOptions() { MaxDegreeOfParallelism = 1 }, action);
             Parallel.ForEach(GetCopyRows(), action);
         }
 
@@ -67,6 +67,7 @@ namespace DBFileReaderLib.Readers
             foreach (var copyRow in m_copyData)
             {
                 IDBRow rec = _Records[copyRow.Value].Clone();
+                rec.Data = rec.Data.Clone();
                 rec.Id = copyRow.Key;
                 _Records[rec.Id] = rec;
                 yield return rec;
