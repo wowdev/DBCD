@@ -303,6 +303,7 @@ namespace DBFileReaderLib.Readers
                     }
                 }
 
+                long previousStringTableSize = 0;
                 for (int sectionIndex = 0; sectionIndex < sectionsCount; sectionIndex++)
                 {
                     reader.BaseStream.Position = sections[sectionIndex].FileOffset;
@@ -318,13 +319,20 @@ namespace DBFileReaderLib.Readers
                         if (m_stringsTable == null)
                             m_stringsTable = new Dictionary<long, string>(sections[sectionIndex].StringTableSize / 0x20);
 
-                        long stringDataOffset = (RecordsCount - sections[sectionIndex].NumRecords) * RecordSize;
+                        long stringDataOffset = 0;
+                        if (sectionIndex == 0)
+                            stringDataOffset = (RecordsCount - sections[sectionIndex].NumRecords) * RecordSize;
+                        else
+                            stringDataOffset = previousStringTableSize;
+
                         for (int i = 0; i < sections[sectionIndex].StringTableSize;)
                         {
                             long oldPos = reader.BaseStream.Position;
                             m_stringsTable[oldPos + stringDataOffset] = reader.ReadCString();
                             i += (int)(reader.BaseStream.Position - oldPos);
                         }
+
+                        previousStringTableSize += sections[sectionIndex].StringTableSize;
                     }
                     else
                     {
