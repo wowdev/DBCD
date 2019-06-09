@@ -156,6 +156,14 @@ namespace DBFileReaderLib.Readers
                         uint palletIndex = r.ReadUInt32(columnMeta.Pallet.BitWidth);
                         return palletData[palletIndex].GetValue<T>();
                     }
+                case CompressionType.PalletArray:
+                    {
+                        if (columnMeta.Pallet.Cardinality != 1)
+                            break;
+
+                        uint palletArrayIndex = r.ReadUInt32(columnMeta.Pallet.BitWidth);
+                        return palletData[(int)palletArrayIndex].GetValue<T>();
+                    }
             }
 
             throw new Exception(string.Format("Unexpected compression type {0}", columnMeta.CompressionType));
@@ -334,6 +342,10 @@ namespace DBFileReaderLib.Readers
                     // index data
                     m_indexData = reader.ReadArray<int>(sections[sectionIndex].IndexDataSize / 4);
 
+                    // fix zero-filled index data
+                    if (m_indexData.Length > 0 && m_indexData.All(x => x == 0))
+                        m_indexData = Enumerable.Range(MinIndex + _Records.Count, sections[sectionIndex].NumRecords).ToArray();
+
                     // duplicate rows data
                     if (sections[sectionIndex].CopyTableCount > 0)
                     {
@@ -375,8 +387,6 @@ namespace DBFileReaderLib.Readers
                         m_indexData = sparseIndexData;
                     }
 
-                    bool indexDataNotEmpty = sections[sectionIndex].IndexDataSize != 0 && !m_indexData.GroupBy(i => i).Any(d => d.Count() > 1);
-
                     int position = 0;
                     for (int i = 0; i < sections[sectionIndex].NumRecords; i++)
                     {
@@ -390,7 +400,7 @@ namespace DBFileReaderLib.Readers
                         else
                             bitReader.Offset = i * RecordSize;
 
-                        IDBRow rec = new WDC3Row(this, bitReader, sections[sectionIndex].FileOffset, indexDataNotEmpty ? m_indexData[i] : -1, refData?.Entries.ElementAtOrDefault(i), i);
+                        IDBRow rec = new WDC3Row(this, bitReader, sections[sectionIndex].FileOffset, sections[sectionIndex].IndexDataSize != 0 ? m_indexData[i] : -1, refData?.Entries.ElementAtOrDefault(i), i);
                         _Records.Add(_Records.Count, rec);
                     }
                 }
