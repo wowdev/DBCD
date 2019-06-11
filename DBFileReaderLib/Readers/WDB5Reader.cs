@@ -1,9 +1,9 @@
-﻿using System;
+﻿using DBFileReaderLib.Common;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using DBFileReaderLib.Common;
 
 namespace DBFileReaderLib.Readers
 {
@@ -84,6 +84,13 @@ namespace DBFileReaderLib.Readers
 
                 object value = null;
                 int fieldIndex = i - indexFieldOffSet;
+
+                // 0x2 SecondaryKey
+                if (fieldIndex >= m_reader.Meta.Length)
+                {
+                    info.Setter(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.Field.FieldType));
+                    continue;
+                }
 
                 if (info.IsArray)
                 {
@@ -223,7 +230,7 @@ namespace DBFileReaderLib.Readers
 
                 // secondary key
                 if (Flags.HasFlagExt(DB2Flags.SecondaryKey))
-                    reader.BaseStream.Position += (MaxIndex - MinIndex + 1) * 4;
+                    m_foreignKeyData = reader.ReadArray<int>(MaxIndex - MinIndex + 1);
 
                 // index table
                 if (Flags.HasFlagExt(DB2Flags.Index))

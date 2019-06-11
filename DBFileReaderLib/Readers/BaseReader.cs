@@ -46,6 +46,9 @@ namespace DBFileReaderLib.Readers
 
         public SparseEntry[] SparseEntries;
 
+        protected int[] m_foreignKeyData;
+        public int[] ForeignKeyData => m_foreignKeyData;
+
         #endregion
 
         #region Helpers

@@ -1,10 +1,10 @@
-﻿using System;
+﻿using DBFileReaderLib.Common;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using DBFileReaderLib.Common;
 
 namespace DBFileReaderLib.Readers
 {
@@ -61,6 +61,8 @@ namespace DBFileReaderLib.Readers
 
         public void GetFields<T>(FieldCache<T>[] fields, T entry)
         {
+            int indexFieldOffSet = 0;
+
             m_data.Position = m_dataPosition;
             m_data.Offset = m_dataOffset;
 
@@ -69,7 +71,9 @@ namespace DBFileReaderLib.Readers
                 FieldCache<T> info = fields[i];
                 if (fields[i].IndexMapField)
                 {
-                    if (Id == -1)
+                    if (Id != -1)
+                        indexFieldOffSet++;
+                    else
                         Id = GetFieldValue<int>(m_data);
 
                     info.Setter(entry, Convert.ChangeType(Id, info.Field.FieldType));
@@ -77,6 +81,14 @@ namespace DBFileReaderLib.Readers
                 }
 
                 object value = null;
+                int fieldIndex = i - indexFieldOffSet;
+
+                // 0x2 SecondaryKey
+                if (fieldIndex >= m_reader.FieldsCount)
+                {
+                    info.Setter(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.Field.FieldType));
+                    continue;
+                }
 
                 if (info.IsArray)
                 {
@@ -176,23 +188,26 @@ namespace DBFileReaderLib.Readers
                         if (sparse.Offset == 0 || sparse.Size == 0)
                             continue;
 
-                        if(!tempSparseEntries.ContainsKey(sparse.Offset))
+                        if (!tempSparseEntries.ContainsKey(sparse.Offset))
                         {
                             tempSparseEntries.Add(sparse.Offset, sparse);
                             recordDataLen += sparse.Size;
-                        }                            
+                        }
                     }
 
                     SparseEntries = tempSparseEntries.Values.ToArray();
 
-                    reader.BaseStream.Position = SparseEntries[0].Offset;
+                    // secondary key
+                    if (Flags.HasFlagExt(DB2Flags.SecondaryKey))
+                        m_foreignKeyData = reader.ReadArray<int>(MaxIndex - MinIndex + 1);
+                    
                     recordsData = reader.ReadBytes(recordDataLen);
                 }
                 else
                 {
                     // secondary key
                     if (Flags.HasFlagExt(DB2Flags.SecondaryKey))
-                        reader.BaseStream.Position += (MaxIndex - MinIndex + 1) * 4;
+                        m_foreignKeyData = reader.ReadArray<int>(MaxIndex - MinIndex + 1);
 
                     // record data
                     recordsData = reader.ReadBytes(RecordsCount * RecordSize);
