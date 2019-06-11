@@ -9,6 +9,6 @@ namespace DBCD.Tests
 
         public TestDBCProvider(string directory) => Directory = directory;
 
-        public Stream StreamForTableName(string tableName) => File.OpenRead(Path.Combine(Directory, tableName + ".db2"));
+        public Stream StreamForTableName(string tableName, string build) => File.OpenRead(Path.Combine(Directory, tableName + ".db2"));
     }
 }
