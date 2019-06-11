@@ -45,19 +45,18 @@ namespace DBCD
 
             Structs.VersionDefinitions? versionDefinition = null;
 
-            if (string.IsNullOrWhiteSpace(build) == false)
+            if (dbcReader.LayoutHash != 0)
+            {
+                var layoutHash = dbcReader.LayoutHash.ToString("X8");
+                Utils.GetVersionDefinitionByLayoutHash(databaseDefinition, layoutHash, out versionDefinition);
+            }
+
+            if (versionDefinition == null && !string.IsNullOrWhiteSpace(build))
             {
                 var dbBuild = new Build(build);
                 locStringSize = GetLocStringSize(dbBuild);
                 Utils.GetVersionDefinitionByBuild(databaseDefinition, dbBuild, out versionDefinition);
-            }
-
-            if (versionDefinition == null)
-            {
-                var layoutHash = dbcReader.LayoutHash.ToString("X8");
-
-                Utils.GetVersionDefinitionByLayoutHash(databaseDefinition, layoutHash, out versionDefinition);
-            }
+            }            
 
             if (versionDefinition == null)
             {
@@ -107,11 +106,15 @@ namespace DBCD
 
         private int GetLocStringSize(Build build)
         {
-            if (build.expansion >= 4)
+            // post wotlk
+            if (build.expansion >= 4 || build.build > 12340)
                 return 1;
+
+            // tbc - wotlk
             if (build.build >= 6692)
                 return 16;
 
+            // alpha - vanilla
             return 8;
         }
 
