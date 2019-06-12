@@ -51,7 +51,7 @@ namespace DBCD
         string[] AvailableColumns { get; }
 
         /// <summary>
-        /// A readonly representation of the data as IDictionary&lt;int, <typeparamref name="T"/>&gt;
+        /// A readonly representation of the data as IDictionary&lt;int, T&gt;
         /// </summary>
         IDictionary BackingCollection { get; }
     }
@@ -86,7 +86,7 @@ namespace DBCD
                 yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
         }
         
-        IDictionary IDBCDStorage.BackingCollection => new ReadOnlyDictionary<int, T>(storage);
+        IDictionary IDBCDStorage.BackingCollection => storage;
 
         public override string ToString() => $"{this.tableName}";
 
