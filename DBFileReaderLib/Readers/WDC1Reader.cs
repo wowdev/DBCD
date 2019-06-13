@@ -1,11 +1,11 @@
-﻿using System;
+﻿using DBFileReaderLib.Common;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using DBFileReaderLib.Common;
 
 namespace DBFileReaderLib.Readers
 {
@@ -277,24 +277,36 @@ namespace DBFileReaderLib.Readers
                         throw new Exception("r.BaseStream.Position != sparseTableOffset");
 
                     int sparseCount = MaxIndex - MinIndex + 1;
-                    var tempSparseEntries = new Dictionary<uint, SparseEntry>(sparseCount);
+
+                    m_sparseEntries = new List<SparseEntry>(sparseCount);
+                    m_copyData = new Dictionary<int, int>(sparseCount);
+                    var sparseIdLookup = new Dictionary<uint, int>(sparseCount);
+
                     for (int i = 0; i < sparseCount; i++)
                     {
                         SparseEntry sparse = reader.Read<SparseEntry>();
                         if (sparse.Offset == 0 || sparse.Size == 0)
                             continue;
 
-                        tempSparseEntries[sparse.Offset] = sparse;
+                        if (sparseIdLookup.TryGetValue(sparse.Offset, out int copyId))
+                        {
+                            m_copyData[MinIndex + i] = copyId;
+                        }
+                        else
+                        {
+                            m_sparseEntries.Add(sparse);
+                            sparseIdLookup.Add(sparse.Offset, MinIndex + i);
+                        }
                     }
-
-                    SparseEntries = tempSparseEntries.Values.ToArray();
                 }
 
                 // index data
                 m_indexData = reader.ReadArray<int>(indexDataSize / 4);
 
                 // duplicate rows data
-                m_copyData = new Dictionary<int, int>(copyTableSize / 8);
+                if (m_copyData == null)
+                    m_copyData = new Dictionary<int, int>(copyTableSize / 8);
+
                 for (int i = 0; i < copyTableSize / 8; i++)
                     m_copyData[reader.ReadInt32()] = reader.ReadInt32();
 
@@ -347,7 +359,7 @@ namespace DBFileReaderLib.Readers
                     if (Flags.HasFlagExt(DB2Flags.Sparse))
                     {
                         bitReader.Position = position;
-                        position += SparseEntries[i].Size * 8;
+                        position += m_sparseEntries[i].Size * 8;
                     }
                     else
                         bitReader.Offset = i * RecordSize;

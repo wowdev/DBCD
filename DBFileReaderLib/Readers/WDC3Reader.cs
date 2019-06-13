@@ -370,7 +370,7 @@ namespace DBFileReaderLib.Readers
                         if (TableHash == 145293629)
                             reader.BaseStream.Position += 4 * sections[sectionIndex].OffsetMapIDCount;
 
-                        SparseEntries = reader.ReadArray<SparseEntry>(sections[sectionIndex].OffsetMapIDCount);
+                        m_sparseEntries = reader.ReadArray<SparseEntry>(sections[sectionIndex].OffsetMapIDCount).ToList();
                     }
 
                     // reference data
@@ -403,7 +403,7 @@ namespace DBFileReaderLib.Readers
                         if (Flags.HasFlagExt(DB2Flags.Sparse))
                         {
                             bitReader.Position = position;
-                            position += SparseEntries[i].Size * 8;
+                            position += m_sparseEntries[i].Size * 8;
                         }
                         else
                             bitReader.Offset = i * RecordSize;

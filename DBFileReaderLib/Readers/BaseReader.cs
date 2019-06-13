@@ -44,7 +44,7 @@ namespace DBFileReaderLib.Readers
         protected byte[] recordsData;
         protected Dictionary<int, IDBRow> _Records = new Dictionary<int, IDBRow>();
 
-        public SparseEntry[] SparseEntries;
+        protected List<SparseEntry> m_sparseEntries;
 
         protected int[] m_foreignKeyData;
         public int[] ForeignKeyData => m_foreignKeyData;
