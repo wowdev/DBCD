@@ -2,6 +2,7 @@ using DBDefsLib;
 using DBFileReaderLib;
 using DBFileReaderLib.Attributes;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -66,6 +67,7 @@ namespace DBCD
             var typeBuilder = moduleBuilder.DefineType(name, TypeAttributes.Public);
 
             var fields = versionDefinition.Value.definitions;
+            var columns = new List<string>(fields.Length);
 
             foreach (var fieldDefinition in fields)
             {
@@ -74,6 +76,8 @@ namespace DBCD
 
                 var fieldType = FieldDefinitionToType(fieldDefinition, columnDefinition);
                 var field = typeBuilder.DefineField(fieldDefinition.name, fieldType, FieldAttributes.Public);
+
+                columns.Add(fieldDefinition.name);
 
                 if (fieldDefinition.isID)
                 {
@@ -88,16 +92,17 @@ namespace DBCD
                 if (isLocalisedString)
                 {
                     AddAttribute<CardinalityAttribute>(field, locStringSize);
+
                     typeBuilder.DefineField(fieldDefinition.name + "_mask", typeof(uint), FieldAttributes.Public);
+                    columns.Add(fieldDefinition.name + "_mask");
                 }
             }
 
             var type = typeBuilder.CreateTypeInfo();
-            var columns = fields.Select(field => field.name).ToArray();
 
             var info = new DBCDInfo
             {
-                availableColumns = columns,
+                availableColumns = columns.ToArray(),
                 tableName = name
             };
 
