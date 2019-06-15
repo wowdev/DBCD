@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using DBCD.Providers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -15,6 +15,8 @@ namespace DBCD.Tests
 
             DBCD dbcd = new DBCD(dbcProvider, githubDBDProvider);
             IDBCDStorage storage = dbcd.Load("Achievement");
+
+            //IDBCDStorage storage = dbcd.Load("LockType", "1.12.1.5875", Locale.EnUS);
         }
     }
 }

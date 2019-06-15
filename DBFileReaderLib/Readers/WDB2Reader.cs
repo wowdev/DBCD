@@ -75,6 +75,12 @@ namespace DBFileReaderLib.Readers
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
+                else if (info.IsLocalisedString)
+                {
+                    m_data.Position += 32 * info.LocaleInfo.Locale;
+                    value = simpleReaders[typeof(string)](m_data, m_reader.StringTable, m_reader);
+                    m_data.Position += 32 * (info.LocaleInfo.LocaleCount - info.LocaleInfo.Locale);
+                }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.Field.FieldType, out var reader))

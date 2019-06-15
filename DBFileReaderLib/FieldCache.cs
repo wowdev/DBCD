@@ -1,6 +1,6 @@
-﻿using System;
+﻿using DBFileReaderLib.Attributes;
+using System;
 using System.Reflection;
-using DBFileReaderLib.Attributes;
 
 namespace DBFileReaderLib
 {
@@ -8,7 +8,9 @@ namespace DBFileReaderLib
     {
         public readonly FieldInfo Field;
         public readonly bool IsArray = false;
+        public readonly bool IsLocalisedString = false;
         public readonly Action<T, object> Setter;
+        public readonly LocaleAttribute LocaleInfo;
 
         public bool IndexMapField { get; set; } = false;
         public int Cardinality { get; set; } = 1;
@@ -17,6 +19,7 @@ namespace DBFileReaderLib
         {
             Field = field;
             IsArray = field.FieldType.IsArray;
+            IsLocalisedString = GetStringInfo(field, out LocaleInfo);
             Setter = field.GetSetter<T>();
             IndexMapField = Attribute.IsDefined(field, typeof(IndexAttribute));
             Cardinality = GetCardinality(field);
@@ -24,8 +27,13 @@ namespace DBFileReaderLib
 
         private int GetCardinality(FieldInfo field)
         {
-            var attr = Attribute.GetCustomAttribute(field, typeof(CardinalityAttribute)) as CardinalityAttribute;
-            return Math.Max(attr?.Count ?? 1, 1);
+            var cardinality = field.GetAttribute<CardinalityAttribute>()?.Count;
+            return cardinality.HasValue && cardinality > 0 ? cardinality.Value : 1;
+        }
+
+        private bool GetStringInfo(FieldInfo field, out LocaleAttribute attribute)
+        {
+            return (attribute = field.GetAttribute<LocaleAttribute>()) != null;
         }
     }
 }

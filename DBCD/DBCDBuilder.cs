@@ -22,8 +22,9 @@ namespace DBCD
     {
         private ModuleBuilder moduleBuilder;
         private int locStringSize;
+        private readonly Locale locale;
 
-        internal DBCDBuilder()
+        internal DBCDBuilder(Locale locale = Locale.None)
         {
             var assemblyName = new AssemblyName("DBCDDefinitons");
             var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
@@ -31,9 +32,10 @@ namespace DBCD
 
             this.moduleBuilder = moduleBuilder;
             this.locStringSize = 1;
+            this.locale = locale;
         }
 
-        internal Tuple<Type, DBCDInfo> Build(DBReader dbcReader, Stream dbd, string name = null, string build = null)
+        internal Tuple<Type, DBCDInfo> Build(DBReader dbcReader, Stream dbd, string name, string build)
         {
             var dbdReader = new DBDReader();
 
@@ -64,17 +66,23 @@ namespace DBCD
                 throw new FileNotFoundException("No definition found for this file.");
             }
 
+            if (locStringSize > 1 && (int)locale >= locStringSize)
+            {
+                throw new FormatException("Invalid locale for this file.");
+            }
+
             var typeBuilder = moduleBuilder.DefineType(name, TypeAttributes.Public);
 
             var fields = versionDefinition.Value.definitions;
             var columns = new List<string>(fields.Length);
+            bool localiseStrings = locale != Locale.None;
 
             foreach (var fieldDefinition in fields)
             {
                 var columnDefinition = databaseDefinition.columnDefinitions[fieldDefinition.name];
                 bool isLocalisedString = columnDefinition.type == "locstring" && locStringSize > 1;
 
-                var fieldType = FieldDefinitionToType(fieldDefinition, columnDefinition);
+                var fieldType = FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings);
                 var field = typeBuilder.DefineField(fieldDefinition.name, fieldType, FieldAttributes.Public);
 
                 columns.Add(fieldDefinition.name);
@@ -91,10 +99,17 @@ namespace DBCD
 
                 if (isLocalisedString)
                 {
-                    AddAttribute<CardinalityAttribute>(field, locStringSize);
-
-                    typeBuilder.DefineField(fieldDefinition.name + "_mask", typeof(uint), FieldAttributes.Public);
-                    columns.Add(fieldDefinition.name + "_mask");
+                    if(localiseStrings)
+                    {
+                        AddAttribute<LocaleAttribute>(field, (int)locale, locStringSize);
+                    }
+                    else
+                    {
+                        AddAttribute<CardinalityAttribute>(field, locStringSize);
+                        // add locstring mask field
+                        typeBuilder.DefineField(fieldDefinition.name + "_mask", typeof(uint), FieldAttributes.Public);
+                        columns.Add(fieldDefinition.name + "_mask");
+                    }                   
                 }
             }
 
@@ -131,7 +146,7 @@ namespace DBCD
             field.SetCustomAttribute(attributeBuilder);
         }
 
-        private Type FieldDefinitionToType(Structs.Definition field, Structs.ColumnDefinition column)
+        private Type FieldDefinitionToType(Structs.Definition field, Structs.ColumnDefinition column, bool localiseStrings)
         {
             var isArray = field.arrLength != 0;
 
@@ -163,7 +178,12 @@ namespace DBCD
                 case "string":
                     return isArray ? typeof(string[]) : typeof(string);
                 case "locstring":
-                    return locStringSize > 1 || isArray ? typeof(string[]) : typeof(string);
+                    {
+                        if (isArray && locStringSize > 1)
+                            throw new NotSupportedException("Localised string arrays are not supported");
+
+                        return (!localiseStrings && locStringSize > 1) || isArray ? typeof(string[]) : typeof(string);
+                    }                    
                 case "float":
                     return isArray ? typeof(float[]) : typeof(float);
                 default:

@@ -21,6 +21,11 @@ namespace DBFileReaderLib
             return Expression.Lambda<Action<T, object>>(assignExpression, paramExpression, valueExpression).Compile();
         }
 
+        public static T GetAttribute<T>(this FieldInfo fieldInfo) where T : Attribute
+        {
+            return Attribute.GetCustomAttribute(fieldInfo, typeof(T)) as T;
+        }
+
         public static T Read<T>(this BinaryReader reader) where T : struct
         {
             byte[] result = reader.ReadBytes(Unsafe.SizeOf<T>());

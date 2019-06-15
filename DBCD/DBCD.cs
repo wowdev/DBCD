@@ -15,12 +15,12 @@ namespace DBCD
             this.dbdProvider = dbdProvider;
         }
 
-        public IDBCDStorage Load(string tableName, string build = null)
+        public IDBCDStorage Load(string tableName, string build = null, Locale locale = Locale.None)
         {
             var dbcStream = this.dbcProvider.StreamForTableName(tableName, build);
             var dbdStream = this.dbdProvider.StreamForTableName(tableName, build);
 
-            var builder = new DBCDBuilder();
+            var builder = new DBCDBuilder(locale);
 
             var dbReader = new DBReader(dbcStream);
             var definition = builder.Build(dbReader, dbdStream, tableName, build);
@@ -32,5 +32,26 @@ namespace DBCD
                 definition.Item2
             });
         }
+    }
+
+    public enum Locale
+    {
+        None = -1,
+        EnUS = 0,
+        EnGB = EnUS,
+        KoKR = 1,
+        FrFR = 2,
+        DeDE = 3,
+        EnCN = 4,
+        ZhCN = EnCN,
+        EnTW = 5,
+        ZhTW = EnTW,
+        EsES = 6,
+        EsMX = 7,
+        /* Available from TBC 2.1.0.6692 */
+        RuRU = 8,
+        PtPT = 10,
+        PtBR = PtPT,
+        ItIT = 11,
     }
 }

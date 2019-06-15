@@ -1,10 +1,10 @@
-﻿using System;
+﻿using DBFileReaderLib.Common;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using DBFileReaderLib.Common;
 
 namespace DBFileReaderLib.Readers
 {
@@ -74,6 +74,12 @@ namespace DBFileReaderLib.Readers
                         value = reader(m_data, m_reader.StringTable, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
+                }
+                else if (info.IsLocalisedString)
+                {
+                    m_data.Position += 32 * info.LocaleInfo.Locale;
+                    value = simpleReaders[typeof(string)](m_data, m_reader.StringTable, m_reader);
+                    m_data.Position += 32 * (info.LocaleInfo.LocaleCount - info.LocaleInfo.Locale);
                 }
                 else
                 {
