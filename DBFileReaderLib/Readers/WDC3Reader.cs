@@ -325,6 +325,7 @@ namespace DBFileReaderLib.Readers
                         else
                             stringDataOffset = previousStringTableSize;
 
+                        m_stringsTable[reader.BaseStream.Position] = "";
                         for (int i = 0; i < sections[sectionIndex].StringTableSize;)
                         {
                             long oldPos = reader.BaseStream.Position;
