@@ -380,7 +380,7 @@ namespace DBFileReaderLib.Readers
 
                     // fix zero-filled index data
                     if (m_indexData.Length > 0 && m_indexData.All(x => x == 0))
-                        m_indexData = Enumerable.Range(MinIndex, MaxIndex).ToArray();
+                        m_indexData = Enumerable.Range(MinIndex, MaxIndex - MinIndex + 1).ToArray();
 
                     // duplicate rows data
                     if (m_copyData == null)
