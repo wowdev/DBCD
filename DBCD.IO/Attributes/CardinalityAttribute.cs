@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DBFileReaderLib.Attributes
+namespace DBCD.IO.Attributes
 {
     public class CardinalityAttribute : Attribute
     {

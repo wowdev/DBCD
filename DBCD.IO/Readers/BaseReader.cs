@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using DBFileReaderLib.Common;
+using DBCD.IO.Common;
 
-namespace DBFileReaderLib.Readers
+namespace DBCD.IO.Readers
 {
     abstract class BaseReader
     {

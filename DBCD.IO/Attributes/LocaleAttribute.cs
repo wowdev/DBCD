@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace DBFileReaderLib.Attributes
+namespace DBCD.IO.Attributes
 {
     public class LocaleAttribute : Attribute
     {

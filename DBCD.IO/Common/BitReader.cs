@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace DBFileReaderLib.Common
+namespace DBCD.IO.Common
 {
     class BitReader
     {

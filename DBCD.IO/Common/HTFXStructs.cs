@@ -1,6 +1,6 @@
 ﻿#pragma warning disable CS0169
 
-namespace DBFileReaderLib.Common
+namespace DBCD.IO.Common
 {
     interface IHotfixEntry
     {

@@ -1,34 +1,29 @@
-﻿using DBFileReaderLib.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using DBCD.IO.Common;
 
-namespace DBFileReaderLib.Readers
+namespace DBCD.IO.Readers
 {
-    class WDB4Row : IDBRow
+    class WDB2Row : IDBRow
     {
         private BitReader m_data;
         private BaseReader m_reader;
-        private readonly int m_dataOffset;
-        private readonly int m_dataPosition;
         private readonly int m_recordIndex;
 
         public int Id { get; set; }
         public BitReader Data { get => m_data; set => m_data = value; }
 
-        public WDB4Row(BaseReader reader, BitReader data, int id, int recordIndex)
+        public WDB2Row(BaseReader reader, BitReader data, int recordIndex)
         {
             m_reader = reader;
             m_data = data;
-            m_recordIndex = recordIndex;
+            m_recordIndex = recordIndex + 1;
 
-            Id = id;
-
-            m_dataOffset = m_data.Offset;
-            m_dataPosition = m_data.Position;
+            Id = m_recordIndex = recordIndex + 1;
         }
 
         private static Dictionary<Type, Func<BitReader, Dictionary<long, string>, BaseReader, object>> simpleReaders = new Dictionary<Type, Func<BitReader, Dictionary<long, string>, BaseReader, object>>
@@ -41,7 +36,7 @@ namespace DBFileReaderLib.Readers
             [typeof(ushort)] = (data, stringTable, header) => GetFieldValue<ushort>(data),
             [typeof(sbyte)] = (data, stringTable, header) => GetFieldValue<sbyte>(data),
             [typeof(byte)] = (data, stringTable, header) => GetFieldValue<byte>(data),
-            [typeof(string)] = (data, stringTable, header) => header.Flags.HasFlagExt(DB2Flags.Sparse) ? data.ReadCString() : stringTable[GetFieldValue<int>(data)],
+            [typeof(string)] = (data, stringTable, header) => stringTable[GetFieldValue<int>(data)],
         };
 
         private static Dictionary<Type, Func<BitReader, Dictionary<long, string>, int, object>> arrayReaders = new Dictionary<Type, Func<BitReader, Dictionary<long, string>, int, object>>
@@ -61,34 +56,17 @@ namespace DBFileReaderLib.Readers
 
         public void GetFields<T>(FieldCache<T>[] fields, T entry)
         {
-            int indexFieldOffSet = 0;
-
-            m_data.Position = m_dataPosition;
-            m_data.Offset = m_dataOffset;
-
             for (int i = 0; i < fields.Length; i++)
             {
                 FieldCache<T> info = fields[i];
-                if (fields[i].IndexMapField)
+                if (info.IndexMapField)
                 {
-                    if (Id != -1)
-                        indexFieldOffSet++;
-                    else
-                        Id = GetFieldValue<int>(m_data);
-
+                    Id = GetFieldValue<int>(m_data);
                     info.Setter(entry, Convert.ChangeType(Id, info.Field.FieldType));
                     continue;
                 }
 
                 object value = null;
-                int fieldIndex = i - indexFieldOffSet;
-
-                // 0x2 SecondaryKey
-                if (fieldIndex >= m_reader.FieldsCount)
-                {
-                    info.Setter(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.Field.FieldType));
-                    continue;
-                }
 
                 if (info.IsArray)
                 {
@@ -96,6 +74,12 @@ namespace DBFileReaderLib.Readers
                         value = reader(m_data, m_reader.StringTable, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
+                }
+                else if (info.IsLocalisedString)
+                {
+                    m_data.Position += 32 * info.LocaleInfo.Locale;
+                    value = simpleReaders[typeof(string)](m_data, m_reader.StringTable, m_reader);
+                    m_data.Position += 32 * (info.LocaleInfo.LocaleCount - info.LocaleInfo.Locale);
                 }
                 else
                 {
@@ -129,24 +113,25 @@ namespace DBFileReaderLib.Readers
         }
     }
 
-    class WDB4Reader : BaseReader
+    class WDB2Reader : BaseReader
     {
-        private const int HeaderSize = 52;
-        private const uint WDB4FmtSig = 0x34424457; // WDB4
+        private const int HeaderSize = 28;
+        private const int ExtendedHeaderSize = 48;
+        private const uint WDB2FmtSig = 0x32424457; // WDB2
 
-        public WDB4Reader(string dbcFile) : this(new FileStream(dbcFile, FileMode.Open)) { }
+        public WDB2Reader(string dbcFile) : this(new FileStream(dbcFile, FileMode.Open)) { }
 
-        public WDB4Reader(Stream stream)
+        public WDB2Reader(Stream stream)
         {
             using (var reader = new BinaryReader(stream, Encoding.UTF8))
             {
                 if (reader.BaseStream.Length < HeaderSize)
-                    throw new InvalidDataException("WDB4 file is corrupted!");
+                    throw new InvalidDataException("WDB2 file is corrupted!");
 
                 uint magic = reader.ReadUInt32();
 
-                if (magic != WDB4FmtSig)
-                    throw new InvalidDataException("WDB4 file is corrupted!");
+                if (magic != WDB2FmtSig)
+                    throw new InvalidDataException("WDB2 file is corrupted!");
 
                 RecordsCount = reader.ReadInt32();
                 FieldsCount = reader.ReadInt32();
@@ -155,91 +140,45 @@ namespace DBFileReaderLib.Readers
                 TableHash = reader.ReadUInt32();
                 uint build = reader.ReadUInt32();
                 uint timestamp = reader.ReadUInt32();
-                MinIndex = reader.ReadInt32();
-                MaxIndex = reader.ReadInt32();
-                int locale = reader.ReadInt32();
-                int copyTableSize = reader.ReadInt32();
-                Flags = (DB2Flags)reader.ReadUInt32();
 
                 if (RecordsCount == 0)
                     return;
 
-                if (!Flags.HasFlagExt(DB2Flags.Sparse))
+                // Extended header 
+                if (build > 12880)
                 {
-                    // records data
-                    recordsData = reader.ReadBytes(RecordsCount * RecordSize);
-                    Array.Resize(ref recordsData, recordsData.Length + 8); // pad with extra zeros so we don't crash when reading
+                    if (reader.BaseStream.Length < ExtendedHeaderSize)
+                        throw new InvalidDataException("WDB2 file is corrupted!");
 
-                    // string table
-                    m_stringsTable = new Dictionary<long, string>(StringTableSize / 0x20);
-                    for (int i = 0; i < StringTableSize;)
+                    MinIndex = reader.ReadInt32();
+                    MaxIndex = reader.ReadInt32();
+                    int locale = reader.ReadInt32();
+                    int copyTableSize = reader.ReadInt32();
+
+                    if (MaxIndex > 0)
                     {
-                        long oldPos = reader.BaseStream.Position;
-                        m_stringsTable[i] = reader.ReadCString();
-                        i += (int)(reader.BaseStream.Position - oldPos);
-                    }
-                }
-                else
-                {
-                    // sparse data with inlined strings
-                    recordsData = reader.ReadBytes(StringTableSize - HeaderSize);
-
-                    int sparseCount = MaxIndex - MinIndex + 1;
-
-                    m_sparseEntries = new List<SparseEntry>(sparseCount);
-                    m_copyData = new Dictionary<int, int>(sparseCount);
-                    var sparseIdLookup = new Dictionary<uint, int>(sparseCount);
-
-                    for (int i = 0; i < sparseCount; i++)
-                    {
-                        SparseEntry sparse = reader.Read<SparseEntry>();
-                        if (sparse.Offset == 0 || sparse.Size == 0)
-                            continue;
-
-                        if (sparseIdLookup.TryGetValue(sparse.Offset, out int copyId))
-                        {
-                            m_copyData[MinIndex + i] = copyId;
-                        }
-                        else
-                        {
-                            m_sparseEntries.Add(sparse);
-                            sparseIdLookup.Add(sparse.Offset, MinIndex + i);
-                        }
+                        int diff = MaxIndex - MinIndex + 1;
+                        reader.BaseStream.Position += diff * 4; // indicies uint[]
+                        reader.BaseStream.Position += diff * 2; // string lengths ushort[]
                     }
                 }
 
-                // secondary key
-                if (Flags.HasFlagExt(DB2Flags.SecondaryKey))
-                    m_foreignKeyData = reader.ReadArray<int>(MaxIndex - MinIndex + 1);
+                recordsData = reader.ReadBytes(RecordsCount * RecordSize);
+                Array.Resize(ref recordsData, recordsData.Length + 8); // pad with extra zeros so we don't crash when reading
 
-                // index table
-                if (Flags.HasFlagExt(DB2Flags.Index))
-                    m_indexData = reader.ReadArray<int>(RecordsCount);
-
-                // duplicate rows data
-                if (m_copyData == null)
-                    m_copyData = new Dictionary<int, int>(copyTableSize / 8);
-
-                for (int i = 0; i < copyTableSize / 8; i++)
-                    m_copyData[reader.ReadInt32()] = reader.ReadInt32();
-
-                int position = 0;
                 for (int i = 0; i < RecordsCount; i++)
                 {
-                    BitReader bitReader = new BitReader(recordsData) { Position = 0 };
-
-                    if (Flags.HasFlagExt(DB2Flags.Sparse))
-                    {
-                        bitReader.Position = position;
-                        position += m_sparseEntries[i].Size * 8;
-                    }
-                    else
-                    {
-                        bitReader.Offset = i * RecordSize;
-                    }
-
-                    IDBRow rec = new WDB4Row(this, bitReader, Flags.HasFlagExt(DB2Flags.Index) ? m_indexData[i] : -1, i);
+                    BitReader bitReader = new BitReader(recordsData) { Position = i * RecordSize * 8 };
+                    IDBRow rec = new WDB2Row(this, bitReader, i);
                     _Records.Add(i, rec);
+                }
+
+                m_stringsTable = new Dictionary<long, string>(StringTableSize / 0x20);
+                for (int i = 0; i < StringTableSize;)
+                {
+                    long oldPos = reader.BaseStream.Position;
+                    m_stringsTable[i] = reader.ReadCString();
+                    i += (int)(reader.BaseStream.Position - oldPos);
                 }
             }
         }

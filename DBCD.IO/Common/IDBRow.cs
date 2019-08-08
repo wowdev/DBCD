@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace DBFileReaderLib.Common
+namespace DBCD.IO.Common
 {
     interface IDBRow
     {

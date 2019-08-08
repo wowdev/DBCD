@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DBFileReaderLib\DBFileReaderLib.csproj" />
+    <ProjectReference Include="..\DBFileReaderLib\DBCD.IO.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,10 +1,10 @@
-﻿using DBFileReaderLib.Readers;
+﻿using DBCD.IO.Readers;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace DBFileReaderLib
+namespace DBCD.IO
 {
     public class HotfixReader
     {

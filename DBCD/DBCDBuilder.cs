@@ -1,6 +1,6 @@
 using DBDefsLib;
-using DBFileReaderLib;
-using DBFileReaderLib.Attributes;
+using DBCD.IO;
+using DBCD.IO.Attributes;
 using System;
 using System.Collections.Generic;
 using System.IO;

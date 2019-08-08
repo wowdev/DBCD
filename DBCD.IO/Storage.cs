@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 
-namespace DBFileReaderLib
+namespace DBCD.IO
 {
     public class Storage<T> : SortedDictionary<int, T> where T : class, new()
     {

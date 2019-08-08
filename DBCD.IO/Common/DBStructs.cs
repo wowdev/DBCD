@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 #pragma warning disable CS0649
 #pragma warning disable IDE0044
 
-namespace DBFileReaderLib.Common
+namespace DBCD.IO.Common
 {
     struct FieldMetaData
     {

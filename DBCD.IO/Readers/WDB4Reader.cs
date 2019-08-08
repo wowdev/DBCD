@@ -1,13 +1,14 @@
-﻿using DBFileReaderLib.Common;
+﻿using DBCD.IO.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace DBFileReaderLib.Readers
+namespace DBCD.IO.Readers
 {
-    class WDB5Row : IDBRow
+    class WDB4Row : IDBRow
     {
         private BitReader m_data;
         private BaseReader m_reader;
@@ -18,9 +19,7 @@ namespace DBFileReaderLib.Readers
         public int Id { get; set; }
         public BitReader Data { get => m_data; set => m_data = value; }
 
-        private readonly FieldMetaData[] m_fieldMeta;
-
-        public WDB5Row(BaseReader reader, BitReader data, int id, int recordIndex)
+        public WDB4Row(BaseReader reader, BitReader data, int id, int recordIndex)
         {
             m_reader = reader;
             m_data = data;
@@ -30,35 +29,34 @@ namespace DBFileReaderLib.Readers
 
             m_dataOffset = m_data.Offset;
             m_dataPosition = m_data.Position;
-            m_fieldMeta = reader.Meta;
         }
 
-        private static Dictionary<Type, Func<BitReader, FieldMetaData, Dictionary<long, string>, BaseReader, object>> simpleReaders = new Dictionary<Type, Func<BitReader, FieldMetaData, Dictionary<long, string>, BaseReader, object>>
+        private static Dictionary<Type, Func<BitReader, Dictionary<long, string>, BaseReader, object>> simpleReaders = new Dictionary<Type, Func<BitReader, Dictionary<long, string>, BaseReader, object>>
         {
-            [typeof(long)] = (data, fieldMeta, stringTable, header) => GetFieldValue<long>(data, fieldMeta),
-            [typeof(float)] = (data, fieldMeta, stringTable, header) => GetFieldValue<float>(data, fieldMeta),
-            [typeof(int)] = (data, fieldMeta, stringTable, header) => GetFieldValue<int>(data, fieldMeta),
-            [typeof(uint)] = (data, fieldMeta, stringTable, header) => GetFieldValue<uint>(data, fieldMeta),
-            [typeof(short)] = (data, fieldMeta, stringTable, header) => GetFieldValue<short>(data, fieldMeta),
-            [typeof(ushort)] = (data, fieldMeta, stringTable, header) => GetFieldValue<ushort>(data, fieldMeta),
-            [typeof(sbyte)] = (data, fieldMeta, stringTable, header) => GetFieldValue<sbyte>(data, fieldMeta),
-            [typeof(byte)] = (data, fieldMeta, stringTable, header) => GetFieldValue<byte>(data, fieldMeta),
-            [typeof(string)] = (data, fieldMeta, stringTable, header) => header.Flags.HasFlagExt(DB2Flags.Sparse) ? data.ReadCString() : stringTable[GetFieldValue<int>(data, fieldMeta)],
+            [typeof(long)] = (data, stringTable, header) => GetFieldValue<long>(data),
+            [typeof(float)] = (data, stringTable, header) => GetFieldValue<float>(data),
+            [typeof(int)] = (data, stringTable, header) => GetFieldValue<int>(data),
+            [typeof(uint)] = (data, stringTable, header) => GetFieldValue<uint>(data),
+            [typeof(short)] = (data, stringTable, header) => GetFieldValue<short>(data),
+            [typeof(ushort)] = (data, stringTable, header) => GetFieldValue<ushort>(data),
+            [typeof(sbyte)] = (data, stringTable, header) => GetFieldValue<sbyte>(data),
+            [typeof(byte)] = (data, stringTable, header) => GetFieldValue<byte>(data),
+            [typeof(string)] = (data, stringTable, header) => header.Flags.HasFlagExt(DB2Flags.Sparse) ? data.ReadCString() : stringTable[GetFieldValue<int>(data)],
         };
 
-        private static Dictionary<Type, Func<BitReader, FieldMetaData, Dictionary<long, string>, int, object>> arrayReaders = new Dictionary<Type, Func<BitReader, FieldMetaData, Dictionary<long, string>, int, object>>
+        private static Dictionary<Type, Func<BitReader, Dictionary<long, string>, int, object>> arrayReaders = new Dictionary<Type, Func<BitReader, Dictionary<long, string>, int, object>>
         {
-            [typeof(ulong[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<ulong>(data, fieldMeta, cardinality),
-            [typeof(long[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<long>(data, fieldMeta, cardinality),
-            [typeof(float[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<float>(data, fieldMeta, cardinality),
-            [typeof(int[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<int>(data, fieldMeta, cardinality),
-            [typeof(uint[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<uint>(data, fieldMeta, cardinality),
-            [typeof(ulong[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<ulong>(data, fieldMeta, cardinality),
-            [typeof(ushort[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<ushort>(data, fieldMeta, cardinality),
-            [typeof(short[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<short>(data, fieldMeta, cardinality),
-            [typeof(byte[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<byte>(data, fieldMeta, cardinality),
-            [typeof(sbyte[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<sbyte>(data, fieldMeta, cardinality),
-            [typeof(string[])] = (data, fieldMeta, stringTable, cardinality) => GetFieldValueArray<int>(data, fieldMeta, cardinality).Select(i => stringTable[i]).ToArray(),
+            [typeof(ulong[])] = (data, stringTable, cardinality) => GetFieldValueArray<ulong>(data, cardinality),
+            [typeof(long[])] = (data, stringTable, cardinality) => GetFieldValueArray<long>(data, cardinality),
+            [typeof(float[])] = (data, stringTable, cardinality) => GetFieldValueArray<float>(data, cardinality),
+            [typeof(int[])] = (data, stringTable, cardinality) => GetFieldValueArray<int>(data, cardinality),
+            [typeof(uint[])] = (data, stringTable, cardinality) => GetFieldValueArray<uint>(data, cardinality),
+            [typeof(ulong[])] = (data, stringTable, cardinality) => GetFieldValueArray<ulong>(data, cardinality),
+            [typeof(ushort[])] = (data, stringTable, cardinality) => GetFieldValueArray<ushort>(data, cardinality),
+            [typeof(short[])] = (data, stringTable, cardinality) => GetFieldValueArray<short>(data, cardinality),
+            [typeof(byte[])] = (data, stringTable, cardinality) => GetFieldValueArray<byte>(data, cardinality),
+            [typeof(sbyte[])] = (data, stringTable, cardinality) => GetFieldValueArray<sbyte>(data, cardinality),
+            [typeof(string[])] = (data, stringTable, cardinality) => GetFieldValueArray<int>(data, cardinality).Select(i => stringTable[i]).ToArray(),
         };
 
         public void GetFields<T>(FieldCache<T>[] fields, T entry)
@@ -71,12 +69,12 @@ namespace DBFileReaderLib.Readers
             for (int i = 0; i < fields.Length; i++)
             {
                 FieldCache<T> info = fields[i];
-                if (info.IndexMapField)
+                if (fields[i].IndexMapField)
                 {
                     if (Id != -1)
                         indexFieldOffSet++;
                     else
-                        Id = GetFieldValue<int>(m_data, m_fieldMeta[i]);
+                        Id = GetFieldValue<int>(m_data);
 
                     info.Setter(entry, Convert.ChangeType(Id, info.Field.FieldType));
                     continue;
@@ -86,7 +84,7 @@ namespace DBFileReaderLib.Readers
                 int fieldIndex = i - indexFieldOffSet;
 
                 // 0x2 SecondaryKey
-                if (fieldIndex >= m_reader.Meta.Length)
+                if (fieldIndex >= m_reader.FieldsCount)
                 {
                     info.Setter(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.Field.FieldType));
                     continue;
@@ -94,18 +92,15 @@ namespace DBFileReaderLib.Readers
 
                 if (info.IsArray)
                 {
-                    if (info.Cardinality <= 1)
-                        SetCardinality(info, fieldIndex);
-
                     if (arrayReaders.TryGetValue(info.Field.FieldType, out var reader))
-                        value = reader(m_data, m_fieldMeta[fieldIndex], m_reader.StringTable, info.Cardinality);
+                        value = reader(m_data, m_reader.StringTable, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.Field.FieldType, out var reader))
-                        value = reader(m_data, m_fieldMeta[fieldIndex], m_reader.StringTable, m_reader);
+                        value = reader(m_data, m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -114,38 +109,16 @@ namespace DBFileReaderLib.Readers
             }
         }
 
-        /// <summary>
-        /// Cardinality can be calculated from the file itself
-        /// - Last field of the record : (header.RecordSize - current offset) / sizeof(ValueType)
-        /// - Middle field : (next field offset - current offset) / sizeof(ValueType)
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="info"></param>
-        /// <param name="fieldIndex"></param>
-        private void SetCardinality<T>(FieldCache<T> info, int fieldIndex)
+        private static T GetFieldValue<T>(BitReader r) where T : struct
         {
-            int fieldOffset = m_fieldMeta[fieldIndex].Offset;
-            int fieldValueSize = (32 - m_fieldMeta[fieldIndex].Bits) >> 3;
-
-            int nextOffset;
-            if (fieldIndex + 1 >= m_fieldMeta.Length)
-                nextOffset = m_reader.RecordSize; // get total record size
-            else
-                nextOffset = m_fieldMeta[fieldIndex + 1].Offset; // get next field offset
-
-            info.Cardinality = (nextOffset - fieldOffset) / fieldValueSize;
+            return r.ReadValue64(Unsafe.SizeOf<T>() * 8).GetValue<T>();
         }
 
-        private static T GetFieldValue<T>(BitReader r, FieldMetaData fieldMeta) where T : struct
-        {
-            return r.ReadValue64(32 - fieldMeta.Bits).GetValue<T>();
-        }
-
-        private static T[] GetFieldValueArray<T>(BitReader r, FieldMetaData fieldMeta, int cardinality) where T : struct
+        private static T[] GetFieldValueArray<T>(BitReader r, int cardinality) where T : struct
         {
             T[] array = new T[cardinality];
             for (int i = 0; i < array.Length; i++)
-                array[i] = r.ReadValue64(32 - fieldMeta.Bits).GetValue<T>();
+                array[i] = r.ReadValue64(Unsafe.SizeOf<T>() * 8).GetValue<T>();
 
             return array;
         }
@@ -156,43 +129,40 @@ namespace DBFileReaderLib.Readers
         }
     }
 
-    class WDB5Reader : BaseReader
+    class WDB4Reader : BaseReader
     {
         private const int HeaderSize = 52;
-        private const uint WDB5FmtSig = 0x35424457; // WDB5
+        private const uint WDB4FmtSig = 0x34424457; // WDB4
 
-        public WDB5Reader(string dbcFile) : this(new FileStream(dbcFile, FileMode.Open)) { }
+        public WDB4Reader(string dbcFile) : this(new FileStream(dbcFile, FileMode.Open)) { }
 
-        public WDB5Reader(Stream stream)
+        public WDB4Reader(Stream stream)
         {
             using (var reader = new BinaryReader(stream, Encoding.UTF8))
             {
                 if (reader.BaseStream.Length < HeaderSize)
-                    throw new InvalidDataException("WDB5 file is corrupted!");
+                    throw new InvalidDataException("WDB4 file is corrupted!");
 
                 uint magic = reader.ReadUInt32();
 
-                if (magic != WDB5FmtSig)
-                    throw new InvalidDataException("WDB5 file is corrupted!");
+                if (magic != WDB4FmtSig)
+                    throw new InvalidDataException("WDB4 file is corrupted!");
 
                 RecordsCount = reader.ReadInt32();
                 FieldsCount = reader.ReadInt32();
                 RecordSize = reader.ReadInt32();
                 StringTableSize = reader.ReadInt32();
                 TableHash = reader.ReadUInt32();
-                LayoutHash = reader.ReadUInt32();
+                uint build = reader.ReadUInt32();
+                uint timestamp = reader.ReadUInt32();
                 MinIndex = reader.ReadInt32();
                 MaxIndex = reader.ReadInt32();
                 int locale = reader.ReadInt32();
                 int copyTableSize = reader.ReadInt32();
-                Flags = (DB2Flags)reader.ReadUInt16();
-                IdFieldIndex = reader.ReadUInt16();
+                Flags = (DB2Flags)reader.ReadUInt32();
 
                 if (RecordsCount == 0)
                     return;
-
-                // field meta data
-                m_meta = reader.ReadArray<FieldMetaData>(FieldsCount);
 
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
@@ -212,7 +182,7 @@ namespace DBFileReaderLib.Readers
                 else
                 {
                     // sparse data with inlined strings
-                    recordsData = reader.ReadBytes(StringTableSize - (int)reader.BaseStream.Position);
+                    recordsData = reader.ReadBytes(StringTableSize - HeaderSize);
 
                     int sparseCount = MaxIndex - MinIndex + 1;
 
@@ -268,7 +238,7 @@ namespace DBFileReaderLib.Readers
                         bitReader.Offset = i * RecordSize;
                     }
 
-                    IDBRow rec = new WDB5Row(this, bitReader, Flags.HasFlagExt(DB2Flags.Index) ? m_indexData[i] : -1, i);
+                    IDBRow rec = new WDB4Row(this, bitReader, Flags.HasFlagExt(DB2Flags.Index) ? m_indexData[i] : -1, i);
                     _Records.Add(i, rec);
                 }
             }

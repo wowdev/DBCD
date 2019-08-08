@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DBFileReaderLib
+namespace DBCD.IO
 {
     [Flags]
     public enum DB2Flags

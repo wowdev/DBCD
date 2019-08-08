@@ -1,14 +1,14 @@
-﻿using System;
+﻿using DBCD.IO.Common;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using DBFileReaderLib.Common;
 
-namespace DBFileReaderLib.Readers
+namespace DBCD.IO.Readers
 {
-    class WDB2Row : IDBRow
+    class WDBCRow : IDBRow
     {
         private BitReader m_data;
         private BaseReader m_reader;
@@ -17,7 +17,7 @@ namespace DBFileReaderLib.Readers
         public int Id { get; set; }
         public BitReader Data { get => m_data; set => m_data = value; }
 
-        public WDB2Row(BaseReader reader, BitReader data, int recordIndex)
+        public WDBCRow(BaseReader reader, BitReader data, int recordIndex)
         {
             m_reader = reader;
             m_data = data;
@@ -113,55 +113,32 @@ namespace DBFileReaderLib.Readers
         }
     }
 
-    class WDB2Reader : BaseReader
+    class WDBCReader : BaseReader
     {
-        private const int HeaderSize = 28;
-        private const int ExtendedHeaderSize = 48;
-        private const uint WDB2FmtSig = 0x32424457; // WDB2
+        private const int HeaderSize = 20;
+        private const uint WDBCFmtSig = 0x43424457; // WDBC
 
-        public WDB2Reader(string dbcFile) : this(new FileStream(dbcFile, FileMode.Open)) { }
+        public WDBCReader(string dbcFile) : this(new FileStream(dbcFile, FileMode.Open)) { }
 
-        public WDB2Reader(Stream stream)
+        public WDBCReader(Stream stream)
         {
             using (var reader = new BinaryReader(stream, Encoding.UTF8))
             {
                 if (reader.BaseStream.Length < HeaderSize)
-                    throw new InvalidDataException("WDB2 file is corrupted!");
+                    throw new InvalidDataException("WDBC file is corrupted!");
 
                 uint magic = reader.ReadUInt32();
 
-                if (magic != WDB2FmtSig)
-                    throw new InvalidDataException("WDB2 file is corrupted!");
+                if (magic != WDBCFmtSig)
+                    throw new InvalidDataException("WDBC file is corrupted!");
 
                 RecordsCount = reader.ReadInt32();
                 FieldsCount = reader.ReadInt32();
                 RecordSize = reader.ReadInt32();
                 StringTableSize = reader.ReadInt32();
-                TableHash = reader.ReadUInt32();
-                uint build = reader.ReadUInt32();
-                uint timestamp = reader.ReadUInt32();
 
                 if (RecordsCount == 0)
                     return;
-
-                // Extended header 
-                if (build > 12880)
-                {
-                    if (reader.BaseStream.Length < ExtendedHeaderSize)
-                        throw new InvalidDataException("WDB2 file is corrupted!");
-
-                    MinIndex = reader.ReadInt32();
-                    MaxIndex = reader.ReadInt32();
-                    int locale = reader.ReadInt32();
-                    int copyTableSize = reader.ReadInt32();
-
-                    if (MaxIndex > 0)
-                    {
-                        int diff = MaxIndex - MinIndex + 1;
-                        reader.BaseStream.Position += diff * 4; // indicies uint[]
-                        reader.BaseStream.Position += diff * 2; // string lengths ushort[]
-                    }
-                }
 
                 recordsData = reader.ReadBytes(RecordsCount * RecordSize);
                 Array.Resize(ref recordsData, recordsData.Length + 8); // pad with extra zeros so we don't crash when reading
@@ -169,7 +146,7 @@ namespace DBFileReaderLib.Readers
                 for (int i = 0; i < RecordsCount; i++)
                 {
                     BitReader bitReader = new BitReader(recordsData) { Position = i * RecordSize * 8 };
-                    IDBRow rec = new WDB2Row(this, bitReader, i);
+                    IDBRow rec = new WDBCRow(this, bitReader, i);
                     _Records.Add(i, rec);
                 }
 

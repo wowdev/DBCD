@@ -1,4 +1,4 @@
-﻿using DBFileReaderLib.Common;
+﻿using DBCD.IO.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace DBFileReaderLib.Readers
+namespace DBCD.IO.Readers
 {
     class WDC1Row : IDBRow
     {

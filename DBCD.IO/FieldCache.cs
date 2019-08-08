@@ -1,8 +1,8 @@
-﻿using DBFileReaderLib.Attributes;
+﻿using DBCD.IO.Attributes;
 using System;
 using System.Reflection;
 
-namespace DBFileReaderLib
+namespace DBCD.IO
 {
     class FieldCache<T>
     {

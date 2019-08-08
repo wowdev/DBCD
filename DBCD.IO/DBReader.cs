@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using DBFileReaderLib.Readers;
+using DBCD.IO.Readers;
 
-namespace DBFileReaderLib
+namespace DBCD.IO
 {
     public class DBReader
     {
