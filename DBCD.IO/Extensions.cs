@@ -21,6 +21,15 @@ namespace DBCD.IO
             return Expression.Lambda<Action<T, object>>(assignExpression, paramExpression, valueExpression).Compile();
         }
 
+        public static Func<T, object> GetGetter<T>(this FieldInfo fieldInfo)
+        {
+            var paramExpression = Expression.Parameter(typeof(T));
+            var propertyExpression = Expression.Field(paramExpression, fieldInfo);
+            var convertExpression = Expression.Convert(propertyExpression, typeof(object));
+
+            return Expression.Lambda<Func<T, object>>(convertExpression, paramExpression).Compile();
+        }
+
         public static T GetAttribute<T>(this FieldInfo fieldInfo) where T : Attribute
         {
             return Attribute.GetCustomAttribute(fieldInfo, typeof(T)) as T;
@@ -32,14 +41,11 @@ namespace DBCD.IO
             return Unsafe.ReadUnaligned<T>(ref result[0]);
         }
 
-        public static T[] ReadArray<T>(this BinaryReader reader) where T : struct
+        public static void Write<T>(this BinaryWriter writer, T value) where T : struct
         {
-            int numBytes = (int)reader.ReadInt64();
-
-            byte[] result = reader.ReadBytes(numBytes);
-
-            reader.BaseStream.Position += (0 - numBytes) & 0x07;
-            return result.CopyTo<T>();
+            byte[] buffer = new byte[Unsafe.SizeOf<T>()];
+            Unsafe.WriteUnaligned(ref buffer[0], value);
+            writer.Write(buffer);
         }
 
         public static T[] ReadArray<T>(this BinaryReader reader, int size) where T : struct
@@ -48,6 +54,23 @@ namespace DBCD.IO
 
             byte[] result = reader.ReadBytes(numBytes);
             return result.CopyTo<T>();
+        }
+
+        public static unsafe void WriteArray<T>(this BinaryWriter writer, T[] value) where T : struct
+        {
+            if (value.Length == 0)
+                return;
+
+            if (value is byte[] arr)
+            {
+                writer.Write(arr);
+            }
+            else
+            {
+                byte[] result = new byte[value.Length * Unsafe.SizeOf<T>()];
+                Unsafe.CopyBlockUnaligned(Unsafe.AsPointer(ref result[0]), Unsafe.AsPointer(ref value[0]), (uint)result.Length);
+                writer.Write(result);
+            }
         }
 
         public static unsafe T[] CopyTo<T>(this byte[] src) where T : struct

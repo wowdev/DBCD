@@ -170,8 +170,8 @@ namespace DBCD.IO.Readers
 
     class WDB6Reader : BaseReader
     {
-        public readonly bool CommonDataIsAligned;
-        public readonly byte[] CommonDataTypes;
+        public bool CommonDataIsAligned { get; }
+        public byte[] CommonDataTypes { get; }
 
         private const int HeaderSize = 56;
         private const uint WDB6FmtSig = 0x36424457; // WDB6

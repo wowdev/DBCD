@@ -64,6 +64,35 @@ namespace DBCD.IO.Common
                     return Unsafe.ReadUnaligned<T>(ptr);
             }
         }
+
+        public static unsafe Value32 Create<T>(T obj) where T : unmanaged
+        {
+            return *(Value32*)&obj;
+        }
+
+        public static unsafe Value32 Create(object obj)
+        {
+            if (obj is byte b)
+                return *(Value32*)&b;
+            else if (obj is sbyte sb)
+                return *(Value32*)&sb;
+            else if (obj is short s)
+                return *(Value32*)&s;
+            else if (obj is ushort us)
+                return *(Value32*)&us;
+            else if (obj is int i)
+                return *(Value32*)&i;
+            else if (obj is uint ui)
+                return *(Value32*)&ui;
+            else if (obj is long l)
+                return *(Value32*)&l;
+            else if (obj is ulong ul)
+                return *(Value32*)&ul;
+            else if (obj is float f)
+                return *(Value32*)&f;
+            else
+                throw new System.Exception("Invalid type");
+        }
     }
 
     struct Value64
