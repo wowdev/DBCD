@@ -3,6 +3,7 @@ using DBCD.IO.Attributes;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
+using DBCD.IO;
 using System.Linq;
 
 namespace DBCD.Tests
@@ -48,7 +49,7 @@ namespace DBCD.Tests
 
             var fields = typeof(SpellVisualEffectNameRec).GetFields();
 
-            DBCD.IO.DBReader reader = new DBCD.IO.DBReader("SpellVisualEffectName.dbc");
+            var reader = new DBReader("SpellVisualEffectName.dbc");
             var recs = reader.GetRecords<SpellVisualEffectNameRec>();
             var val = recs.Values.Where(x => x.Flags > 0).ToArray();
 
