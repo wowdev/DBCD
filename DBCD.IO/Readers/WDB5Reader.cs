@@ -158,7 +158,7 @@ namespace DBCD.IO.Readers
 
     class WDB5Reader : BaseReader
     {
-        private const int HeaderSize = 52;
+        private const int HeaderSize = 48;
         private const uint WDB5FmtSig = 0x35424457; // WDB5
 
         public WDB5Reader(string dbcFile) : this(new FileStream(dbcFile, FileMode.Open)) { }
@@ -183,7 +183,7 @@ namespace DBCD.IO.Readers
                 LayoutHash = reader.ReadUInt32();
                 MinIndex = reader.ReadInt32();
                 MaxIndex = reader.ReadInt32();
-                int locale = reader.ReadInt32();
+                Locale = reader.ReadInt32();
                 int copyTableSize = reader.ReadInt32();
                 Flags = (DB2Flags)reader.ReadUInt16();
                 IdFieldIndex = reader.ReadUInt16();

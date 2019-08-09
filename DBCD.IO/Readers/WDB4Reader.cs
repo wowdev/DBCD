@@ -153,11 +153,11 @@ namespace DBCD.IO.Readers
                 RecordSize = reader.ReadInt32();
                 StringTableSize = reader.ReadInt32();
                 TableHash = reader.ReadUInt32();
-                uint build = reader.ReadUInt32();
+                Build = reader.ReadUInt32();
                 uint timestamp = reader.ReadUInt32();
                 MinIndex = reader.ReadInt32();
                 MaxIndex = reader.ReadInt32();
-                int locale = reader.ReadInt32();
+                Locale = reader.ReadInt32();
                 int copyTableSize = reader.ReadInt32();
                 Flags = (DB2Flags)reader.ReadUInt32();
 

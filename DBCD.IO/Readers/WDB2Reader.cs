@@ -138,14 +138,14 @@ namespace DBCD.IO.Readers
                 RecordSize = reader.ReadInt32();
                 StringTableSize = reader.ReadInt32();
                 TableHash = reader.ReadUInt32();
-                uint build = reader.ReadUInt32();
+                Build = reader.ReadUInt32();
                 uint timestamp = reader.ReadUInt32();
 
                 if (RecordsCount == 0)
                     return;
 
                 // Extended header 
-                if (build > 12880)
+                if (Build > 12880)
                 {
                     if (reader.BaseStream.Length < ExtendedHeaderSize)
                         throw new InvalidDataException("WDB2 file is corrupted!");

@@ -231,13 +231,13 @@ namespace DBCD.IO.Readers
                 LayoutHash = reader.ReadUInt32();
                 MinIndex = reader.ReadInt32();
                 MaxIndex = reader.ReadInt32();
-                int locale = reader.ReadInt32();
+                Locale = reader.ReadInt32();
                 int copyTableSize = reader.ReadInt32();
                 Flags = (DB2Flags)reader.ReadUInt16();
                 IdFieldIndex = reader.ReadUInt16();
 
                 int totalFieldsCount = reader.ReadInt32();
-                int packedDataOffset = reader.ReadInt32(); // Offset within the field where packed data starts
+                PackedDataOffset = reader.ReadInt32(); // Offset within the field where packed data starts
                 int lookupColumnCount = reader.ReadInt32(); // count of lookup columns
                 int sparseTableOffset = reader.ReadInt32(); // absolute value, {uint offset, ushort size}[MaxId - MinId + 1]
                 int indexDataSize = reader.ReadInt32(); // int indexData[IndexDataSize / 4]

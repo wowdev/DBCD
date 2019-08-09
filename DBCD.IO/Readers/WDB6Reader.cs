@@ -170,11 +170,14 @@ namespace DBCD.IO.Readers
 
     class WDB6Reader : BaseReader
     {
+        public readonly bool CommonDataIsAligned;
+        public readonly byte[] CommonDataTypes;
+
         private const int HeaderSize = 56;
         private const uint WDB6FmtSig = 0x36424457; // WDB6
 
         // CommonData type enum to bit size
-        private readonly Dictionary<byte, short> CommonTypeBits = new Dictionary<byte, short>
+        private readonly Dictionary<byte, short> CommonDataTypeBits = new Dictionary<byte, short>
         {
             { 0, 0 },  // string
             { 1, 16 }, // short
@@ -185,7 +188,7 @@ namespace DBCD.IO.Readers
 
         public WDB6Reader(string dbcFile) : this(new FileStream(dbcFile, FileMode.Open)) { }
 
-        public unsafe WDB6Reader(Stream stream)
+        public WDB6Reader(Stream stream)
         {
             using (var reader = new BinaryReader(stream, Encoding.UTF8))
             {
@@ -205,7 +208,7 @@ namespace DBCD.IO.Readers
                 LayoutHash = reader.ReadUInt32();
                 MinIndex = reader.ReadInt32();
                 MaxIndex = reader.ReadInt32();
-                int locale = reader.ReadInt32();
+                Locale = reader.ReadInt32();
                 int copyTableSize = reader.ReadInt32();
                 Flags = (DB2Flags)reader.ReadUInt16();
                 IdFieldIndex = reader.ReadUInt16();
@@ -286,20 +289,23 @@ namespace DBCD.IO.Readers
 
                     // HACK as of 24473 values are 4 byte aligned
                     // try to calculate this by seeing if all <id, value> tuples are 8 bytes
-                    bool aligned = (commonDataSize - 4 - (fieldCount * 5)) % 8 == 0;
+                    CommonDataIsAligned = (commonDataSize - 4 - (fieldCount * 5)) % 8 == 0;
+                    CommonDataTypes = new byte[totalFieldCount - FieldsCount];
 
                     for (int i = 0; i < fieldCount; i++)
                     {
                         int count = reader.ReadInt32();
                         byte type = reader.ReadByte();
-                        int size = aligned ? 4 : (32 - CommonTypeBits[type]) >> 3;
+                        int size = CommonDataIsAligned ? 4 : (32 - CommonDataTypeBits[type]) >> 3;
 
                         // add the new meta entry
                         if (i > FieldsCount)
                         {
+                            CommonDataTypes[i - FieldsCount] = type;
+
                             m_meta[i] = new FieldMetaData()
                             {
-                                Bits = CommonTypeBits[type],
+                                Bits = CommonDataTypeBits[type],
                                 Offset = (short)(m_meta[i - 1].Offset + ((32 - m_meta[i - 1].Bits) >> 3))
                             };
                         }

@@ -18,6 +18,9 @@ namespace DBCD.IO.Readers
         public int MaxIndex { get; protected set; }
         public int IdFieldIndex { get; protected set; }
         public DB2Flags Flags { get; protected set; }
+        public int Locale { get; protected set; }
+        public uint Build { get; protected set; }
+        public int PackedDataOffset { get; protected set; }
 
         #region Data
 
