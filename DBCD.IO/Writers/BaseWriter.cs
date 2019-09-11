@@ -2,7 +2,6 @@
 using DBCD.IO.Readers;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 namespace DBCD.IO.Writers
 {
@@ -18,7 +17,7 @@ namespace DBCD.IO.Writers
 
         public BaseWriter(BaseReader reader)
         {
-            FieldCache = typeof(T).GetFields().Select(x => new FieldCache<T>(x)).ToArray();
+            FieldCache = typeof(T).ToFieldCache<T>();
 
             FieldsCount = reader.FieldsCount;
             RecordSize = reader.RecordSize;

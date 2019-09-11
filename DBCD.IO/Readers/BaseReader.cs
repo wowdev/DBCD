@@ -1,8 +1,8 @@
-﻿using System;
+﻿using DBCD.IO.Common;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using DBCD.IO.Common;
 
 namespace DBCD.IO.Readers
 {
@@ -60,6 +60,18 @@ namespace DBCD.IO.Readers
         {
             Parallel.ForEach(_Records.Values, action);
             Parallel.ForEach(GetCopyRows(), action);
+        }
+
+        public void Clear()
+        {
+            _Records.Clear();
+            Array.Resize(ref m_indexData, 0);
+            Array.Resize(ref m_palletData, 0);
+            Array.Resize(ref m_palletData, 0);
+            Array.Resize(ref recordsData, 0);
+            Array.Resize(ref m_foreignKeyData, 0);
+            m_stringsTable.Clear();
+            m_sparseEntries.Clear();
         }
 
         private IEnumerable<IDBRow> GetCopyRows()

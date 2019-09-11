@@ -30,7 +30,7 @@ namespace DBCD.IO
         private int GetCardinality(FieldInfo field)
         {
             var cardinality = field.GetAttribute<CardinalityAttribute>()?.Count;
-            return cardinality.HasValue && cardinality > 0 ? cardinality.Value : 1;
+            return cardinality > 0 ? cardinality.Value : 1;
         }
 
         private bool GetStringInfo(FieldInfo field, out LocaleAttribute attribute)

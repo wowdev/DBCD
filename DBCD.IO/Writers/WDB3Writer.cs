@@ -167,7 +167,7 @@ namespace DBCD.IO.Writers
                     int sparseCount = maxIndex - minIndex + 1;
                     uint recordsOffset = (uint)(writer.BaseStream.Position + (sparseCount * 6));
                     WriteOffsetRecords(writer, serializer, recordsOffset, sparseCount);
-                }                    
+                }
 
                 // secondary key
                 if (Flags.HasFlagExt(DB2Flags.SecondaryKey))

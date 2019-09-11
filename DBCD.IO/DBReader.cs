@@ -1,8 +1,7 @@
-﻿using System;
+﻿using DBCD.IO.Readers;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using DBCD.IO.Readers;
 
 namespace DBCD.IO
 {
@@ -75,7 +74,7 @@ namespace DBCD.IO
 
         protected virtual void ReadRecords<T>(IDictionary<int, T> storage) where T : class, new()
         {
-            var fieldCache = typeof(T).GetFields().Select(x => new FieldCache<T>(x)).ToArray();
+            var fieldCache = typeof(T).ToFieldCache<T>();
 
             _reader.Enumerate((row) =>
             {

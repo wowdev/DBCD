@@ -41,7 +41,7 @@ namespace DBCD.IO
 
         public void CombineCaches(params string[] files)
         {
-            foreach(var file in files)
+            foreach (var file in files)
             {
                 if (!File.Exists(file))
                     continue;
@@ -59,7 +59,7 @@ namespace DBCD.IO
 
         protected virtual void ReadHotfixes<T>(IDictionary<int, T> storage, DBReader dbReader) where T : class, new()
         {
-            var fieldCache = typeof(T).GetFields().Select(x => new FieldCache<T>(x)).ToArray();
+            var fieldCache = typeof(T).ToFieldCache<T>();
 
             // Id fields need to be excluded if not inline
             if (dbReader.Flags.HasFlagExt(DB2Flags.Index))

@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace DBCD.IO.Readers
@@ -271,7 +270,7 @@ namespace DBCD.IO.Readers
                 else
                 {
                     // sparse data with inlined strings
-                    recordsData = reader.ReadBytes(sparseTableOffset - HeaderSize - Marshal.SizeOf<FieldMetaData>() * FieldsCount);
+                    recordsData = reader.ReadBytes(sparseTableOffset - HeaderSize - Unsafe.SizeOf<FieldMetaData>() * FieldsCount);
 
                     if (reader.BaseStream.Position != sparseTableOffset)
                         throw new Exception("r.BaseStream.Position != sparseTableOffset");

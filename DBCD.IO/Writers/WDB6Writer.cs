@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace DBCD.IO.Writers
 {
@@ -220,14 +219,14 @@ namespace DBCD.IO.Writers
                     writer.WriteArray(serializer.Records.Keys.Except(m_copyData.Keys).ToArray());
 
                 // copy table
-                if(!Flags.HasFlagExt(DB2Flags.Sparse))
+                if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     foreach (var copyRecord in m_copyData)
                     {
                         writer.Write(copyRecord.Key);
                         writer.Write(copyRecord.Value);
                     }
-                }                
+                }
 
                 // common data
                 // HACK this is bodged together 

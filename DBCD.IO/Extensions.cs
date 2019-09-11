@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace DBCD.IO
@@ -30,6 +29,17 @@ namespace DBCD.IO
             return Expression.Lambda<Func<T, object>>(convertExpression, paramExpression).Compile();
         }
 
+        public static FieldCache<T>[] ToFieldCache<T>(this Type type)
+        {
+            var fields = type.GetFields();
+
+            var cache = new FieldCache<T>[fields.Length];
+            for (int i = 0; i < fields.Length; i++)
+                cache[i] = new FieldCache<T>(fields[i]);
+
+            return cache;
+        }
+
         public static T GetAttribute<T>(this FieldInfo fieldInfo) where T : Attribute
         {
             return Attribute.GetCustomAttribute(fieldInfo, typeof(T)) as T;
@@ -48,12 +58,17 @@ namespace DBCD.IO
             writer.Write(buffer);
         }
 
-        public static T[] ReadArray<T>(this BinaryReader reader, int size) where T : struct
+        public static unsafe T[] ReadArray<T>(this BinaryReader reader, int size) where T : struct
         {
-            int numBytes = Marshal.SizeOf<T>() * size;
+            int sizeOf = Unsafe.SizeOf<T>();
 
-            byte[] result = reader.ReadBytes(numBytes);
-            return result.CopyTo<T>();
+            byte[] src = reader.ReadBytes(sizeOf * size);
+            if (src.Length == 0)
+                return new T[0];
+
+            T[] result = new T[src.Length / sizeOf];
+            Unsafe.CopyBlockUnaligned(Unsafe.AsPointer(ref result[0]), Unsafe.AsPointer(ref src[0]), (uint)src.Length);
+            return result;
         }
 
         public static unsafe void WriteArray<T>(this BinaryWriter writer, T[] value) where T : struct
@@ -61,26 +76,13 @@ namespace DBCD.IO
             if (value.Length == 0)
                 return;
 
-            if (value is byte[] arr)
+            if (!(value is byte[] buffer))
             {
-                writer.Write(arr);
+                buffer = new byte[value.Length * Unsafe.SizeOf<T>()];
+                Unsafe.CopyBlockUnaligned(Unsafe.AsPointer(ref buffer[0]), Unsafe.AsPointer(ref value[0]), (uint)buffer.Length);
             }
-            else
-            {
-                byte[] result = new byte[value.Length * Unsafe.SizeOf<T>()];
-                Unsafe.CopyBlockUnaligned(Unsafe.AsPointer(ref result[0]), Unsafe.AsPointer(ref value[0]), (uint)result.Length);
-                writer.Write(result);
-            }
-        }
 
-        public static unsafe T[] CopyTo<T>(this byte[] src) where T : struct
-        {
-            T[] result = new T[src.Length / Unsafe.SizeOf<T>()];
-
-            if (src.Length > 0)
-                Unsafe.CopyBlockUnaligned(Unsafe.AsPointer(ref result[0]), Unsafe.AsPointer(ref src[0]), (uint)src.Length);
-
-            return result;
+            writer.Write(buffer);
         }
 
         public static bool HasFlagExt(this DB2Flags flag, DB2Flags valueToCheck)
@@ -118,18 +120,6 @@ namespace DBCD.IO
             var bytes = Encoding.UTF8.GetBytes(str);
             writer.Write(bytes);
             writer.Write((byte)0);
-        }
-
-        public static byte[] ToByteArray(this string str)
-        {
-            str = str.Replace(" ", string.Empty);
-
-            var res = new byte[str.Length / 2];
-            for (int i = 0; i < res.Length; i++)
-            {
-                res[i] = Convert.ToByte(str.Substring(i * 2, 2), 16);
-            }
-            return res;
         }
     }
 }

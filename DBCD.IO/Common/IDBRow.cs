@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace DBCD.IO.Common
+﻿namespace DBCD.IO.Common
 {
     interface IDBRow
     {

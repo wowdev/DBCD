@@ -1,10 +1,10 @@
-﻿using System;
+﻿using DBCD.IO.Common;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using DBCD.IO.Common;
 
 namespace DBCD.IO.Readers
 {

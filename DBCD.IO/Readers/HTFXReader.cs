@@ -114,7 +114,7 @@ namespace DBCD.IO.Readers
         {
             return (IDBRow)MemberwiseClone();
         }
-        
+
         public override int GetHashCode()
         {
             unchecked
