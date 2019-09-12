@@ -7,6 +7,8 @@ namespace DBCD.IO.Common
 {
     class BitWriter : IEquatable<BitWriter>
     {
+        public int TotalBytesWrittenOut { get; private set; }
+
         private byte nAccumulatedBits;
         private byte[] buffer;
 
@@ -19,8 +21,6 @@ namespace DBCD.IO.Common
         }
 
         public byte this[int i] => buffer[i];
-        public int TotalBytesWrittenOut { get; private set; }
-
 
         public void WriteAligned<T>(T value) where T : struct
         {
@@ -143,8 +143,8 @@ namespace DBCD.IO.Common
             int remainder = TotalBytesWrittenOut % divisor;
             if (remainder != 0)
             {
-                EnsureSize();
-                TotalBytesWrittenOut += 4 - remainder;
+                EnsureSize(divisor);
+                TotalBytesWrittenOut += divisor - remainder;
             }
         }
 
