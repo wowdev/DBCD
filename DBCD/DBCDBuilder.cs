@@ -48,18 +48,18 @@ namespace DBCD
 
             Structs.VersionDefinitions? versionDefinition = null;
 
-            if (dbcReader.LayoutHash != 0)
-            {
-                var layoutHash = dbcReader.LayoutHash.ToString("X8");
-                Utils.GetVersionDefinitionByLayoutHash(databaseDefinition, layoutHash, out versionDefinition);
-            }
-
-            if (versionDefinition == null && !string.IsNullOrWhiteSpace(build))
+            if (!string.IsNullOrWhiteSpace(build))
             {
                 var dbBuild = new Build(build);
                 locStringSize = GetLocStringSize(dbBuild);
                 Utils.GetVersionDefinitionByBuild(databaseDefinition, dbBuild, out versionDefinition);
-            }            
+            }
+
+            if (versionDefinition == null && dbcReader.LayoutHash != 0)
+            {
+                var layoutHash = dbcReader.LayoutHash.ToString("X8");
+                Utils.GetVersionDefinitionByLayoutHash(databaseDefinition, layoutHash, out versionDefinition);
+            }
 
             if (versionDefinition == null)
             {
@@ -99,7 +99,7 @@ namespace DBCD
 
                 if (isLocalisedString)
                 {
-                    if(localiseStrings)
+                    if (localiseStrings)
                     {
                         AddAttribute<LocaleAttribute>(field, (int)locale, locStringSize);
                     }
@@ -109,7 +109,7 @@ namespace DBCD
                         // add locstring mask field
                         typeBuilder.DefineField(fieldDefinition.name + "_mask", typeof(uint), FieldAttributes.Public);
                         columns.Add(fieldDefinition.name + "_mask");
-                    }                   
+                    }
                 }
             }
 
@@ -183,7 +183,7 @@ namespace DBCD
                             throw new NotSupportedException("Localised string arrays are not supported");
 
                         return (!localiseStrings && locStringSize > 1) || isArray ? typeof(string[]) : typeof(string);
-                    }                    
+                    }
                 case "float":
                     return isArray ? typeof(float[]) : typeof(float);
                 default:
