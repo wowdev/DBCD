@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace DBCD.IO.Writers
 {
@@ -162,7 +163,7 @@ namespace DBCD.IO.Writers
                 foreach (var record in serializer.Records)
                     record.Value.CopyTo(writer.BaseStream);
 
-                foreach (var str in m_stringsTable)
+                foreach (var str in StringTable)
                     writer.WriteCString(str.Key);
             }
         }

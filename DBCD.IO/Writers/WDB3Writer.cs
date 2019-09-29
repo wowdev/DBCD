@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace DBCD.IO.Writers
 {
@@ -135,7 +136,7 @@ namespace DBCD.IO.Writers
             serializer.Serialize(storage);
             serializer.GetCopyRows();
 
-            RecordsCount = serializer.Records.Count - m_copyData.Count;
+            RecordsCount = serializer.Records.Count - CopyData.Count;
             if (Flags.HasFlagExt(DB2Flags.Sparse))
                 StringTableSize = 0;
 
@@ -143,7 +144,7 @@ namespace DBCD.IO.Writers
             {
                 int minIndex = storage.Keys.Min();
                 int maxIndex = storage.Keys.Max();
-                int copyTableSize = Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : m_copyData.Count * 8;
+                int copyTableSize = Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : CopyData.Count * 8;
 
                 writer.Write(WDB3FmtSig);
                 writer.Write(RecordsCount);
@@ -175,25 +176,25 @@ namespace DBCD.IO.Writers
 
                 // record data
                 foreach (var record in serializer.Records)
-                    if (!m_copyData.ContainsKey(record.Key))
+                    if (!CopyData.ContainsKey(record.Key))
                         record.Value.CopyTo(writer.BaseStream);
 
                 // string table
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     writer.WriteCString("");
-                    foreach (var str in m_stringsTable)
+                    foreach (var str in StringTable)
                         writer.WriteCString(str.Key);
                 }
 
                 // index table
                 if (Flags.HasFlagExt(DB2Flags.Index))
-                    writer.WriteArray(serializer.Records.Keys.Except(m_copyData.Keys).ToArray());
+                    writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
 
                 // copy table
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
-                    foreach (var copyRecord in m_copyData)
+                    foreach (var copyRecord in CopyData)
                     {
                         writer.Write(copyRecord.Key);
                         writer.Write(copyRecord.Value);

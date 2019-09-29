@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace DBCD.IO.Writers
 {
@@ -146,20 +147,20 @@ namespace DBCD.IO.Writers
             // always 2 empties
             StringTableSize++;
 
-            m_commonData = new Dictionary<int, Value32>[m_meta.Length - FieldsCount];
-            Array.ForEach(m_commonData, x => x = new Dictionary<int, Value32>());
+            CommonData = new Dictionary<int, Value32>[Meta.Length - FieldsCount];
+            Array.ForEach(CommonData, x => x = new Dictionary<int, Value32>());
 
             WDB6RowSerializer<T> serializer = new WDB6RowSerializer<T>(this);
             serializer.Serialize(storage);
             serializer.GetCopyRows();
 
-            RecordsCount = serializer.Records.Count - m_copyData.Count;
+            RecordsCount = serializer.Records.Count - CopyData.Count;
 
             using (var writer = new BinaryWriter(stream))
             {
                 int minIndex = storage.Keys.Min();
                 int maxIndex = storage.Keys.Max();
-                int copyTableSize = Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : m_copyData.Count * 8;
+                int copyTableSize = Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : CopyData.Count * 8;
 
                 writer.Write(WDB6FmtSig);
                 writer.Write(RecordsCount);
@@ -174,7 +175,7 @@ namespace DBCD.IO.Writers
                 writer.Write(copyTableSize);
                 writer.Write((ushort)Flags);
                 writer.Write((ushort)IdFieldIndex);
-                writer.Write(m_meta.Length); // totalFieldCount
+                writer.Write(Meta.Length); // totalFieldCount
                 writer.Write(0); // commonDataSize
 
                 if (storage.Count == 0)
@@ -182,19 +183,19 @@ namespace DBCD.IO.Writers
 
                 // field meta
                 for (int i = 0; i < FieldsCount; i++)
-                    writer.Write(m_meta[i]);
+                    writer.Write(Meta[i]);
 
                 // record data
                 uint recordsOffset = (uint)writer.BaseStream.Position;
                 foreach (var record in serializer.Records)
-                    if (!m_copyData.TryGetValue(record.Key, out int parent))
+                    if (!CopyData.TryGetValue(record.Key, out int parent))
                         record.Value.CopyTo(writer.BaseStream);
 
                 // string table
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     writer.WriteCString("");
-                    foreach (var str in m_stringsTable)
+                    foreach (var str in StringTable)
                         writer.WriteCString(str.Key);
                 }
 
@@ -216,12 +217,12 @@ namespace DBCD.IO.Writers
 
                 // index table
                 if (Flags.HasFlagExt(DB2Flags.Index))
-                    writer.WriteArray(serializer.Records.Keys.Except(m_copyData.Keys).ToArray());
+                    writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
 
                 // copy table
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
-                    foreach (var copyRecord in m_copyData)
+                    foreach (var copyRecord in CopyData)
                     {
                         writer.Write(copyRecord.Key);
                         writer.Write(copyRecord.Value);
@@ -231,18 +232,18 @@ namespace DBCD.IO.Writers
                 // common data
                 // HACK this is bodged together 
                 // - it only writes common data columns and all values including common ones
-                if (m_commonData.Length > 0)
+                if (CommonData.Length > 0)
                 {
                     long startPos = writer.BaseStream.Position;
 
-                    writer.Write(m_meta.Length - FieldsCount);
+                    writer.Write(Meta.Length - FieldsCount);
 
-                    for (int i = 0; i < m_commonData.Length; i++)
+                    for (int i = 0; i < CommonData.Length; i++)
                     {
-                        writer.Write(m_commonData[i].Count);
+                        writer.Write(CommonData[i].Count);
                         writer.Write(reader.CommonDataTypes[i]); // type
 
-                        foreach (var record in m_commonData[i])
+                        foreach (var record in CommonData[i])
                         {
                             writer.Write(record.Key);
 

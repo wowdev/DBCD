@@ -37,7 +37,7 @@ namespace DBCD.IO
         }
 
 
-        public void ApplyHotfixes<T>(IDictionary<int, T> storage, DBReader dbReader) where T : class, new() => ReadHotfixes(storage, dbReader);
+        public void ApplyHotfixes<T>(IDictionary<int, T> storage, DBParser dbReader) where T : class, new() => ReadHotfixes(storage, dbReader);
 
         public void CombineCaches(params string[] files)
         {
@@ -57,7 +57,7 @@ namespace DBCD.IO
         }
 
 
-        protected virtual void ReadHotfixes<T>(IDictionary<int, T> storage, DBReader dbReader) where T : class, new()
+        protected virtual void ReadHotfixes<T>(IDictionary<int, T> storage, DBParser dbReader) where T : class, new()
         {
             var fieldCache = typeof(T).ToFieldCache<T>();
 

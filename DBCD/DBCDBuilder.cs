@@ -35,7 +35,7 @@ namespace DBCD
             this.locale = locale;
         }
 
-        internal Tuple<Type, DBCDInfo> Build(DBReader dbcReader, Stream dbd, string name, string build)
+        internal Tuple<Type, DBCDInfo> Build(DBParser dbcReader, Stream dbd, string name, string build)
         {
             var dbdReader = new DBDReader();
 

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace DBCD.IO.Writers
 {
@@ -288,7 +289,7 @@ namespace DBCD.IO.Writers
             serializer.GetCopyRows();
             serializer.UpdateStringOffsets(storage);
 
-            RecordsCount = serializer.Records.Count - m_copyData.Count;
+            RecordsCount = serializer.Records.Count - CopyData.Count;
 
             var (commonDataSize, palletDataSize, referenceDataSize) = GetDataSizes();
 
@@ -296,7 +297,7 @@ namespace DBCD.IO.Writers
             {
                 int minIndex = storage.Keys.Min();
                 int maxIndex = storage.Keys.Max();
-                int copyTableSize = Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : m_copyData.Count * 8;
+                int copyTableSize = Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : CopyData.Count * 8;
 
                 writer.Write(reader.Signature);
                 writer.Write(RecordsCount);
@@ -313,8 +314,8 @@ namespace DBCD.IO.Writers
 
                 writer.Write(FieldsCount); // totalFieldCount
                 writer.Write(reader.PackedDataOffset);
-                writer.Write(m_referenceData.Count > 0 ? 1 : 0); // RelationshipColumnCount
-                writer.Write(m_columnMeta.Length * 24); // ColumnMetaDataSize
+                writer.Write(ReferenceData.Count > 0 ? 1 : 0); // RelationshipColumnCount
+                writer.Write(ColumnMeta.Length * 24); // ColumnMetaDataSize
                 writer.Write(commonDataSize);
                 writer.Write(palletDataSize);
                 writer.Write(1); // sections count
@@ -323,7 +324,7 @@ namespace DBCD.IO.Writers
                     return;
 
                 // section header
-                int fileOffset = HeaderSize + (m_meta.Length * 4) + (m_columnMeta.Length * 24) + Unsafe.SizeOf<SectionHeader>() + palletDataSize + commonDataSize;
+                int fileOffset = HeaderSize + (Meta.Length * 4) + (ColumnMeta.Length * 24) + Unsafe.SizeOf<SectionHeader>() + palletDataSize + commonDataSize;
 
                 writer.Write(0UL); // TactKeyLookup
                 writer.Write(fileOffset); // FileOffset
@@ -335,27 +336,27 @@ namespace DBCD.IO.Writers
                 writer.Write(referenceDataSize);
 
                 // field meta
-                writer.WriteArray(m_meta);
+                writer.WriteArray(Meta);
 
                 // column meta data
-                writer.WriteArray(m_columnMeta);
+                writer.WriteArray(ColumnMeta);
 
                 // pallet data
-                for (int i = 0; i < m_columnMeta.Length; i++)
+                for (int i = 0; i < ColumnMeta.Length; i++)
                 {
-                    if (m_columnMeta[i].CompressionType == CompressionType.Pallet || m_columnMeta[i].CompressionType == CompressionType.PalletArray)
+                    if (ColumnMeta[i].CompressionType == CompressionType.Pallet || ColumnMeta[i].CompressionType == CompressionType.PalletArray)
                     {
-                        foreach (var palletData in m_palletData[i])
+                        foreach (var palletData in PalletData[i])
                             writer.WriteArray(palletData);
                     }
                 }
 
                 // common data
-                for (int i = 0; i < m_columnMeta.Length; i++)
+                for (int i = 0; i < ColumnMeta.Length; i++)
                 {
-                    if (m_columnMeta[i].CompressionType == CompressionType.Common)
+                    if (ColumnMeta[i].CompressionType == CompressionType.Common)
                     {
-                        foreach (var commondata in m_commonData[i])
+                        foreach (var commondata in CommonData[i])
                         {
                             writer.Write(commondata.Key);
                             writer.Write(commondata.Value.GetValue<int>());
@@ -366,14 +367,14 @@ namespace DBCD.IO.Writers
                 // record data
                 uint recordsOffset = (uint)writer.BaseStream.Position;
                 foreach (var record in serializer.Records)
-                    if (!m_copyData.TryGetValue(record.Key, out int parent))
+                    if (!CopyData.TryGetValue(record.Key, out int parent))
                         record.Value.CopyTo(writer.BaseStream);
 
                 // string table
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     writer.WriteCString("");
-                    foreach (var str in m_stringsTable)
+                    foreach (var str in StringTable)
                         writer.WriteCString(str.Key);
                 }
 
@@ -391,12 +392,12 @@ namespace DBCD.IO.Writers
 
                 // index table
                 if (Flags.HasFlagExt(DB2Flags.Index))
-                    writer.WriteArray(serializer.Records.Keys.Except(m_copyData.Keys).ToArray());
+                    writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
 
                 // copy table
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
-                    foreach (var copyRecord in m_copyData)
+                    foreach (var copyRecord in CopyData)
                     {
                         writer.Write(copyRecord.Key);
                         writer.Write(copyRecord.Value);
@@ -404,15 +405,15 @@ namespace DBCD.IO.Writers
                 }
 
                 // reference data
-                if (m_referenceData.Count > 0)
+                if (ReferenceData.Count > 0)
                 {
-                    writer.Write(m_referenceData.Count);
-                    writer.Write(m_referenceData.Min());
-                    writer.Write(m_referenceData.Max());
+                    writer.Write(ReferenceData.Count);
+                    writer.Write(ReferenceData.Min());
+                    writer.Write(ReferenceData.Max());
 
-                    for (int i = 0; i < m_referenceData.Count; i++)
+                    for (int i = 0; i < ReferenceData.Count; i++)
                     {
-                        writer.Write(m_referenceData[i]);
+                        writer.Write(ReferenceData[i]);
                         writer.Write(i);
                     }
                 }
@@ -423,25 +424,25 @@ namespace DBCD.IO.Writers
         {
             // uint NumRecords, uint minId, uint maxId, {uint id, uint index}[NumRecords]
             int refSize = 0;
-            if (m_referenceData.Count > 0)
-                refSize = 12 + (m_referenceData.Count * 8);
+            if (ReferenceData.Count > 0)
+                refSize = 12 + (ReferenceData.Count * 8);
 
             int commonSize = 0, palletSize = 0;
-            for (int i = 0; i < m_columnMeta.Length; i++)
+            for (int i = 0; i < ColumnMeta.Length; i++)
             {
-                switch (m_columnMeta[i].CompressionType)
+                switch (ColumnMeta[i].CompressionType)
                 {
                     // {uint id, uint copyid}[]
                     case CompressionType.Common:
-                        m_columnMeta[i].AdditionalDataSize = (uint)(m_commonData[i].Count * 8);
-                        commonSize += (int)m_columnMeta[i].AdditionalDataSize;
+                        ColumnMeta[i].AdditionalDataSize = (uint)(CommonData[i].Count * 8);
+                        commonSize += (int)ColumnMeta[i].AdditionalDataSize;
                         break;
 
                     // {uint values[cardinality]}[]
                     case CompressionType.Pallet:
                     case CompressionType.PalletArray:
-                        m_columnMeta[i].AdditionalDataSize = (uint)m_palletData[i].Sum(x => x.Length * 4);
-                        palletSize += (int)m_columnMeta[i].AdditionalDataSize;
+                        ColumnMeta[i].AdditionalDataSize = (uint)PalletData[i].Sum(x => x.Length * 4);
+                        palletSize += (int)ColumnMeta[i].AdditionalDataSize;
                         break;
                 }
             }

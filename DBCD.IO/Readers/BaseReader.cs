@@ -24,37 +24,22 @@ namespace DBCD.IO.Readers
 
         #region Data
 
-        protected FieldMetaData[] m_meta;
-        public FieldMetaData[] Meta => m_meta;
+        public FieldMetaData[] Meta { get; protected set; }
+        public int[] IndexData { get; protected set; }
+        public ColumnMetaData[] ColumnMeta { get; protected set; }
+        public Value32[][] PalletData { get; protected set; }
+        public Dictionary<int, Value32>[] CommonData { get; protected set; }
+        public Dictionary<long, string> StringTable { get; protected set; }
+        public int[] ForeignKeyData { get; protected set; }
 
-        protected int[] m_indexData;
-        public int[] IndexData => m_indexData;
-
-        protected ColumnMetaData[] m_columnMeta;
-        public ColumnMetaData[] ColumnMeta => m_columnMeta;
-
-        protected Value32[][] m_palletData;
-        public Value32[][] PalletData => m_palletData;
-
-        protected Dictionary<int, Value32>[] m_commonData;
-        public Dictionary<int, Value32>[] CommonData => m_commonData;
-
-        protected Dictionary<long, string> m_stringsTable;
-        public Dictionary<long, string> StringTable => m_stringsTable;
-
-        protected Dictionary<int, int> m_copyData;
-
-        protected byte[] recordsData;
-        protected Dictionary<int, IDBRow> _Records = new Dictionary<int, IDBRow>();
-
-        protected List<SparseEntry> m_sparseEntries;
-
-        protected int[] m_foreignKeyData;
-        public int[] ForeignKeyData => m_foreignKeyData;
+        protected Dictionary<int, int> CopyData { get; set; }
+        protected byte[] RecordsData { get; set; }
+        protected Dictionary<int, IDBRow> _Records { get; set; } = new Dictionary<int, IDBRow>();
+        protected List<SparseEntry> SparseEntries { get; set; }
 
         #endregion
 
-        #region Helpers
+        #region Methods
 
         public void Enumerate(Action<IDBRow> action)
         {
@@ -71,25 +56,28 @@ namespace DBCD.IO.Readers
 
         public void Clear()
         {
-            _Records.Clear();
-            Array.Resize(ref m_indexData, 0);
-            Array.Resize(ref m_palletData, 0);
-            Array.Resize(ref m_palletData, 0);
-            Array.Resize(ref recordsData, 0);
-            Array.Resize(ref m_foreignKeyData, 0);
-            m_stringsTable.Clear();
-            m_sparseEntries.Clear();
+            IndexData = null;
+            PalletData = null;
+            ColumnMeta = null;
+            RecordsData = null;
+            ForeignKeyData = null;
+            CommonData = null;
+
+            _Records?.Clear();
+            StringTable?.Clear();
+            SparseEntries?.Clear();
+            CopyData?.Clear();
         }
 
         private IEnumerable<IDBRow> GetCopyRows()
         {
-            if (m_copyData == null || m_copyData.Count == 0)
+            if (CopyData == null || CopyData.Count == 0)
                 yield break;
 
             // fix temp ids
             _Records = _Records.ToDictionary(x => x.Value.Id, x => x.Value);
 
-            foreach (var copyRow in m_copyData)
+            foreach (var copyRow in CopyData)
             {
                 IDBRow rec = _Records[copyRow.Value].Clone();
                 rec.Data = rec.Data.Clone();
@@ -98,7 +86,7 @@ namespace DBCD.IO.Readers
                 yield return rec;
             }
 
-            m_copyData.Clear();
+            CopyData.Clear();
         }
 
         #endregion

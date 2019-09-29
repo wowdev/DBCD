@@ -65,18 +65,21 @@ namespace DBCD
 
         string[] IDBCDStorage.AvailableColumns => this.availableColumns;
 
-        public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBReader(stream), info) { }
+        public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBParser(stream), info) { }
 
-        public DBCDStorage(DBReader dbReader, DBCDInfo info) : base(new Dictionary<int, DBCDRow>())
+        public DBCDStorage(DBParser dbReader, DBCDInfo info) : base(new Dictionary<int, DBCDRow>())
         {
             this.availableColumns = info.availableColumns;
             this.tableName = info.tableName;
             this.fieldAccessor = new FieldAccessor(typeof(T));
 
             // populate the collection so we don't iterate all values and create new rows each time
-            storage = new ReadOnlyDictionary<int, T>(dbReader.GetRecords<T>());
+            storage = new ReadOnlyDictionary<int, T>(dbReader.ReadRecords<T>());
             foreach (var record in storage)
                 base.Dictionary.Add(record.Key, new DBCDRow(record.Key, record.Value, fieldAccessor));
+
+            // clear temp data from memory
+            dbReader.ClearCache();
         }
 
         IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()

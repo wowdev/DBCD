@@ -15,6 +15,18 @@ namespace DBCD.IO.Writers
         public int IdFieldIndex { get; }
         public DB2Flags Flags { get; }
 
+        #region Data
+
+        public FieldMetaData[] Meta { get; protected set; }
+        public ColumnMetaData[] ColumnMeta { get; protected set; }
+        public List<Value32[]>[] PalletData { get; protected set; }
+        public Dictionary<int, Value32>[] CommonData { get; protected set; }
+        public Dictionary<string, int> StringTable { get; protected set; }
+        public SortedDictionary<int, int> CopyData { get; protected set; }
+        public List<int> ReferenceData { get; protected set; }
+
+        #endregion
+
         public BaseWriter(BaseReader reader)
         {
             FieldCache = typeof(T).ToFieldCache<T>();
@@ -24,62 +36,37 @@ namespace DBCD.IO.Writers
             IdFieldIndex = reader.IdFieldIndex;
             Flags = reader.Flags;
 
-            m_stringsTable = new Dictionary<string, int>();
-            m_copyData = new SortedDictionary<int, int>();
-            m_meta = reader.Meta;
-            m_columnMeta = reader.ColumnMeta;
+            StringTable = new Dictionary<string, int>();
+            CopyData = new SortedDictionary<int, int>();
+            Meta = reader.Meta;
+            ColumnMeta = reader.ColumnMeta;
 
-            if (m_columnMeta != null)
+            if (ColumnMeta != null)
             {
-                m_commonData = new Dictionary<int, Value32>[m_columnMeta.Length];
-                m_palletData = new List<Value32[]>[m_columnMeta.Length];
-                m_referenceData = new List<int>();
+                CommonData = new Dictionary<int, Value32>[ColumnMeta.Length];
+                PalletData = new List<Value32[]>[ColumnMeta.Length];
+                ReferenceData = new List<int>();
 
                 // create the lookup collections
-                for (int i = 0; i < m_columnMeta.Length; i++)
+                for (int i = 0; i < ColumnMeta.Length; i++)
                 {
-                    m_commonData[i] = new Dictionary<int, Value32>();
-                    m_palletData[i] = new List<Value32[]>();
+                    CommonData[i] = new Dictionary<int, Value32>();
+                    PalletData[i] = new List<Value32[]>();
                 }
             }
 
+            // add an empty string at the first index
             InternString("");
-        }
-
-
-        #region Data
-
-        protected FieldMetaData[] m_meta;
-        public FieldMetaData[] Meta => m_meta;
-
-        protected ColumnMetaData[] m_columnMeta;
-        public ColumnMetaData[] ColumnMeta => m_columnMeta;
-
-        protected List<Value32[]>[] m_palletData;
-        public List<Value32[]>[] PalletData => m_palletData;
-
-        protected Dictionary<int, Value32>[] m_commonData;
-        public Dictionary<int, Value32>[] CommonData => m_commonData;
-
-        protected Dictionary<string, int> m_stringsTable;
-        public Dictionary<string, int> StringTable => m_stringsTable;
-
-        protected SortedDictionary<int, int> m_copyData;
-        public SortedDictionary<int, int> CopyData => m_copyData;
-
-        protected List<int> m_referenceData;
-        public List<int> ReferenceData => m_referenceData;
-
-        #endregion
+        }            
 
         #region Methods
 
         public int InternString(string value)
         {
-            if (m_stringsTable.TryGetValue(value, out int index))
+            if (StringTable.TryGetValue(value, out int index))
                 return index;
 
-            m_stringsTable.Add(value, StringTableSize);
+            StringTable.Add(value, StringTableSize);
 
             int offset = StringTableSize;
             StringTableSize += value.Length + 1;
@@ -94,7 +81,7 @@ namespace DBCD.IO.Writers
             {
                 if (serializer.Records.TryGetValue(i, out var record))
                 {
-                    if (m_copyData.TryGetValue(i, out int copyid))
+                    if (CopyData.TryGetValue(i, out int copyid))
                     {
                         // copy records use their parent's offset
                         writer.Write(sparseIdLookup[copyid]);
