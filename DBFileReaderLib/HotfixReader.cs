@@ -41,7 +41,7 @@ namespace DBFileReaderLib
 
         public void CombineCaches(params string[] files)
         {
-            foreach(var file in files)
+            foreach (var file in files)
             {
                 if (!File.Exists(file))
                     continue;
