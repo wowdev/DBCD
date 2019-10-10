@@ -90,7 +90,7 @@ namespace DBCD
 
                 if (fieldDefinition.isID)
                 {
-                    AddAttribute<IndexAttribute>(field, !fieldDefinition.isNonInline);
+                    AddAttribute<IndexAttribute>(field, fieldDefinition.isNonInline);
                 }
 
                 if (fieldDefinition.arrLength > 1)

@@ -4,8 +4,8 @@ namespace DBFileReaderLib.Attributes
 {
     public class IndexAttribute : Attribute
     {
-        public readonly bool Inline;
+        public readonly bool NonInline;
 
-        public IndexAttribute(bool inline) => Inline = inline;
+        public IndexAttribute(bool noninline) => NonInline = noninline;
     }
 }
