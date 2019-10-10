@@ -73,6 +73,7 @@ namespace DBCD
 
         private readonly ReadOnlyDictionary<int, T> storage;
         private readonly DBCDInfo info;
+
         private readonly DBReader reader;
 
         string[] IDBCDStorage.AvailableColumns => this.info.availableColumns;
@@ -82,23 +83,14 @@ namespace DBCD
 
         public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBReader(stream), info) { }
 
-        public DBCDStorage(DBReader dbReader, DBCDInfo info) : this(dbReader, info, null) { }
+        public DBCDStorage(DBReader dbReader, DBCDInfo info) : this(dbReader, new ReadOnlyDictionary<int, T>(dbReader.GetRecords<T>()), info) { }
 
-        public DBCDStorage(DBReader dbReader, DBCDInfo info, HotfixReader hotfixReader) : base(new Dictionary<int, DBCDRow>())
+        public DBCDStorage(DBReader reader, ReadOnlyDictionary<int, T> storage, DBCDInfo info) : base(new Dictionary<int, DBCDRow>())
         {
-            this.reader = dbReader;
             this.info = info;
             this.fieldAccessor = new FieldAccessor(typeof(T));
-
-            // populate the collection so we don't iterate all values and create new rows each time
-            var storage = new Dictionary<int, T>(dbReader.GetRecords<T>());
-
-            if (hotfixReader != null)
-            {
-                hotfixReader.ApplyHotfixes(storage, dbReader);
-            }
-
-            this.storage = new ReadOnlyDictionary<int, T>(storage);
+            this.reader = reader;
+            this.storage = storage;
 
             foreach (var record in storage)
                 base.Dictionary.Add(record.Key, new DBCDRow(record.Key, record.Value, fieldAccessor));
@@ -106,7 +98,11 @@ namespace DBCD
 
         public IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader)
         {
-            return new DBCDStorage<T>(this.reader, this.info, hotfixReader);
+            var mutableStorage = this.storage.ToDictionary(k => k.Key, v => v.Value);
+
+            hotfixReader.ApplyHotfixes(mutableStorage, this.reader);
+
+            return new DBCDStorage<T>(this.reader, new ReadOnlyDictionary<int, T>(mutableStorage), this.info);
         }
 
         IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()
