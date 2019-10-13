@@ -61,7 +61,7 @@ namespace DBCD.Helpers
             }
             else
             {
-                return (T)Convert.ChangeType(obj, typeof(T), _convertCulture);
+                return (T)Convert.ChangeType(value, typeof(T), _convertCulture);
             }
         }
 
