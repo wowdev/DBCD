@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Dynamic;
 using System.IO;
-using System.Linq;
 
 namespace DBCD
 {
@@ -31,6 +30,16 @@ namespace DBCD
         public object this[string fieldName]
         {
             get => fieldAccessor[this.raw, fieldName];
+        }
+
+        public T Field<T>(string fieldName)
+        {
+            return (T)fieldAccessor[this.raw, fieldName];
+        }
+
+        public T FieldAs<T>(string fieldName)
+        {
+            return fieldAccessor.GetMemberAs<T>(this.raw, fieldName);
         }
     }
 
@@ -85,7 +94,7 @@ namespace DBCD
             while (enumerator.MoveNext())
                 yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
         }
-        
+
         IDictionary IDBCDStorage.BackingCollection => storage;
 
         public override string ToString() => $"{this.tableName}";
