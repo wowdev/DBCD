@@ -63,29 +63,46 @@ namespace DBCD
         /// A readonly representation of the data as IDictionary&lt;int, T&gt;
         /// </summary>
         IDictionary BackingCollection { get; }
+
+        IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader);
     }
 
     public class DBCDStorage<T> : ReadOnlyDictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
     {
-        private readonly string[] availableColumns;
-        private readonly string tableName;
         private readonly FieldAccessor fieldAccessor;
-        private readonly ReadOnlyDictionary<int, T> storage;
 
-        string[] IDBCDStorage.AvailableColumns => this.availableColumns;
+        private readonly ReadOnlyDictionary<int, T> storage;
+        private readonly DBCDInfo info;
+
+        private readonly DBReader reader;
+
+        string[] IDBCDStorage.AvailableColumns => this.info.availableColumns;
+        IDictionary IDBCDStorage.BackingCollection => storage;
+
+        public override string ToString() => $"{this.info.tableName}";
 
         public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBReader(stream), info) { }
 
-        public DBCDStorage(DBReader dbReader, DBCDInfo info) : base(new Dictionary<int, DBCDRow>())
-        {
-            this.availableColumns = info.availableColumns;
-            this.tableName = info.tableName;
-            this.fieldAccessor = new FieldAccessor(typeof(T));
+        public DBCDStorage(DBReader dbReader, DBCDInfo info) : this(dbReader, new ReadOnlyDictionary<int, T>(dbReader.GetRecords<T>()), info) { }
 
-            // populate the collection so we don't iterate all values and create new rows each time
-            storage = new ReadOnlyDictionary<int, T>(dbReader.GetRecords<T>());
+        public DBCDStorage(DBReader reader, ReadOnlyDictionary<int, T> storage, DBCDInfo info) : base(new Dictionary<int, DBCDRow>())
+        {
+            this.info = info;
+            this.fieldAccessor = new FieldAccessor(typeof(T));
+            this.reader = reader;
+            this.storage = storage;
+
             foreach (var record in storage)
                 base.Dictionary.Add(record.Key, new DBCDRow(record.Key, record.Value, fieldAccessor));
+        }
+
+        public IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader)
+        {
+            var mutableStorage = this.storage.ToDictionary(k => k.Key, v => v.Value);
+
+            hotfixReader.ApplyHotfixes(mutableStorage, this.reader);
+
+            return new DBCDStorage<T>(this.reader, new ReadOnlyDictionary<int, T>(mutableStorage), this.info);
         }
 
         IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()
@@ -94,10 +111,5 @@ namespace DBCD
             while (enumerator.MoveNext())
                 yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
         }
-
-        IDictionary IDBCDStorage.BackingCollection => storage;
-
-        public override string ToString() => $"{this.tableName}";
-
     }
 }

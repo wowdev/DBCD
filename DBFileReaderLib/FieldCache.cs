@@ -21,8 +21,10 @@ namespace DBFileReaderLib
             IsArray = field.FieldType.IsArray;
             IsLocalisedString = GetStringInfo(field, out LocaleInfo);
             Setter = field.GetSetter<T>();
-            IndexMapField = Attribute.IsDefined(field, typeof(IndexAttribute));
             Cardinality = GetCardinality(field);
+
+            IndexAttribute indexAttribute = (IndexAttribute)Attribute.GetCustomAttribute(field, typeof(IndexAttribute));
+            IndexMapField = (indexAttribute != null) ? indexAttribute.NonInline : false;
         }
 
         private int GetCardinality(FieldInfo field)

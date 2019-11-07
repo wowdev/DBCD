@@ -1,6 +1,7 @@
 using DBDefsLib;
 using DBFileReaderLib;
 using DBFileReaderLib.Attributes;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -89,7 +90,7 @@ namespace DBCD
 
                 if (fieldDefinition.isID)
                 {
-                    AddAttribute<IndexAttribute>(field);
+                    AddAttribute<IndexAttribute>(field, fieldDefinition.isNonInline);
                 }
 
                 if (fieldDefinition.arrLength > 1)
