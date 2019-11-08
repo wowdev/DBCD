@@ -42,6 +42,11 @@ namespace DBCD
         {
             return fieldAccessor.GetMemberAs<T>(this.raw, fieldName);
         }
+
+        public override IEnumerable<string> GetDynamicMemberNames()
+        {
+            return fieldAccessor.FieldNames;
+        }
     }
 
     public class DynamicKeyValuePair<T>
@@ -89,7 +94,7 @@ namespace DBCD
         public DBCDStorage(DBReader reader, ReadOnlyDictionary<int, T> storage, DBCDInfo info) : base(new Dictionary<int, DBCDRow>())
         {
             this.info = info;
-            this.fieldAccessor = new FieldAccessor(typeof(T));
+            this.fieldAccessor = new FieldAccessor(typeof(T), info.availableColumns);
             this.reader = reader;
             this.storage = storage;
 

@@ -7,15 +7,16 @@ namespace DBCD.Helpers
 {
     internal class FieldAccessor
     {
+        public IEnumerable<string> FieldNames => _accessors.Keys;
+
         private readonly Dictionary<string, Func<object, dynamic>> _accessors;
         private readonly CultureInfo _convertCulture;
 
-        public FieldAccessor(Type type)
+        public FieldAccessor(Type type, string[] fields)
         {
             _accessors = new Dictionary<string, Func<object, dynamic>>();
             _convertCulture = CultureInfo.InvariantCulture;
 
-            var fields = type.GetFields();
             var ownerParameter = Expression.Parameter(typeof(object));
 
             foreach (var field in fields)
@@ -24,7 +25,7 @@ namespace DBCD.Helpers
                 var conversionExpression = Expression.Convert(fieldExpression, typeof(object));
                 var accessorExpression = Expression.Lambda<Func<object, dynamic>>(conversionExpression, ownerParameter);
 
-                _accessors.Add(field.Name, accessorExpression.Compile());
+                _accessors.Add(field, accessorExpression.Compile());
             }
         }
 
