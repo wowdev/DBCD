@@ -15,7 +15,10 @@ namespace DBCD.Tests
         public void TestMethod1()
         {
             DBCD dbcd = new DBCD(dbcProvider, githubDBDProvider);
-            IDBCDStorage storage = dbcd.Load("Achievement");
+            IDBCDStorage storage = dbcd.Load("ItemEffect");
+
+            var i1 = storage[116161];
+            var i2 = storage[116162];
         }
 
         [TestMethod]

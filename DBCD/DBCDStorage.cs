@@ -65,25 +65,17 @@ namespace DBCD
     {
         string[] AvailableColumns { get; }
 
-        /// <summary>
-        /// A readonly representation of the data as IDictionary&lt;int, T&gt;
-        /// </summary>
-        IDictionary BackingCollection { get; }
-
         IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader);
     }
 
     public class DBCDStorage<T> : ReadOnlyDictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
     {
         private readonly FieldAccessor fieldAccessor;
-
         private readonly ReadOnlyDictionary<int, T> storage;
         private readonly DBCDInfo info;
-
         private readonly DBReader reader;
 
         string[] IDBCDStorage.AvailableColumns => this.info.availableColumns;
-        IDictionary IDBCDStorage.BackingCollection => storage;
 
         public override string ToString() => $"{this.info.tableName}";
 
