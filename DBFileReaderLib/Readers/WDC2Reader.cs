@@ -395,7 +395,10 @@ namespace DBFileReaderLib.Readers
                         refData.NumRecords = reader.ReadInt32();
                         refData.MinId = reader.ReadInt32();
                         refData.MaxId = reader.ReadInt32();
-                        refData.Entries = reader.ReadArray<ReferenceEntry>(refData.NumRecords).ToDictionary(x => x.Index, x => x.Id);
+
+                        var entries = reader.ReadArray<ReferenceEntry>(refData.NumRecords);
+                        for (int i = 0; i < entries.Length; i++)
+                            refData.Entries[entries[i].Index] = entries[i].Id;
                     }
 
                     int position = 0;
