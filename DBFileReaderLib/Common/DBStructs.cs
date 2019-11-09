@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 #pragma warning disable CS0649
@@ -101,7 +102,7 @@ namespace DBFileReaderLib.Common
         public int NumRecords { get; set; }
         public int MinId { get; set; }
         public int MaxId { get; set; }
-        public ReferenceEntry[] Entries { get; set; }
+        public Dictionary<int, int> Entries { get; set; } = new Dictionary<int, int>();
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 2)]

@@ -24,9 +24,9 @@ namespace DBFileReaderLib.Readers
         private readonly ColumnMetaData[] m_columnMeta;
         private readonly Value32[][] m_palletData;
         private readonly Dictionary<int, Value32>[] m_commonData;
-        private readonly ReferenceEntry? m_refData;
+        private readonly int m_refID;
 
-        public WDC2Row(BaseReader reader, BitReader data, int recordsOffset, int id, ReferenceEntry? refData, int recordIndex)
+        public WDC2Row(BaseReader reader, BitReader data, int recordsOffset, int id, int refID, int recordIndex)
         {
             m_reader = reader;
             m_data = data;
@@ -40,7 +40,7 @@ namespace DBFileReaderLib.Readers
             m_columnMeta = reader.ColumnMeta;
             m_palletData = reader.PalletData;
             m_commonData = reader.CommonData;
-            m_refData = refData;
+            m_refID = refID;
 
             Id = id;
         }
@@ -111,8 +111,7 @@ namespace DBFileReaderLib.Readers
 
                 if (fieldIndex >= m_reader.Meta.Length)
                 {
-                    value = m_refData?.Id ?? 0;
-                    info.Setter(entry, Convert.ChangeType(value, info.Field.FieldType));
+                    info.Setter(entry, Convert.ChangeType(m_refID, info.Field.FieldType));
                     continue;
                 }
 
@@ -390,17 +389,13 @@ namespace DBFileReaderLib.Readers
                         m_copyData[reader.ReadInt32()] = reader.ReadInt32();
 
                     // reference data
-                    ReferenceData refData = null;
+                    ReferenceData refData = new ReferenceData();
                     if (sections[sectionIndex].ParentLookupDataSize > 0)
                     {
-                        refData = new ReferenceData
-                        {
-                            NumRecords = reader.ReadInt32(),
-                            MinId = reader.ReadInt32(),
-                            MaxId = reader.ReadInt32()
-                        };
-
-                        refData.Entries = reader.ReadArray<ReferenceEntry>(refData.NumRecords);
+                        refData.NumRecords = reader.ReadInt32();
+                        refData.MinId = reader.ReadInt32();
+                        refData.MaxId = reader.ReadInt32();
+                        refData.Entries = reader.ReadArray<ReferenceEntry>(refData.NumRecords).ToDictionary(x => x.Index, x => x.Id);
                     }
 
                     int position = 0;
@@ -414,9 +409,13 @@ namespace DBFileReaderLib.Readers
                             position += m_sparseEntries[i].Size * 8;
                         }
                         else
+                        {
                             bitReader.Offset = i * RecordSize;
+                        }                            
 
-                        IDBRow rec = new WDC2Row(this, bitReader, sections[sectionIndex].FileOffset, sections[sectionIndex].IndexDataSize != 0 ? m_indexData[i] : -1, refData?.Entries.ElementAtOrDefault(i), i);
+                        refData.Entries.TryGetValue(i, out int refId);
+
+                        IDBRow rec = new WDC2Row(this, bitReader, sections[sectionIndex].FileOffset, sections[sectionIndex].IndexDataSize != 0 ? m_indexData[i] : -1, refId, i);
                         _Records.Add(i, rec);
                     }
                 }
