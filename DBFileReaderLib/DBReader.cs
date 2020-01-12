@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using DBFileReaderLib.Common;
 using DBFileReaderLib.Readers;
 
 namespace DBFileReaderLib
@@ -84,6 +85,19 @@ namespace DBFileReaderLib
                 lock (storage)
                     storage.Add(row.Id, entry);
             });
+        }
+
+
+        public Dictionary<ulong, int> GetEncryptedSections()
+        {
+            var reader = this._reader as IEncryptionSupportingReader;
+
+            if (reader == null)
+            {
+                return new Dictionary<ulong, int>();
+            }
+
+            return reader.GetEncryptedSections().ToDictionary(s => s.TactKeyLookup, s => s.NumRecords);
         }
     }
 }

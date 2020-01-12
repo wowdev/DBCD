@@ -245,7 +245,7 @@ namespace DBFileReaderLib.Readers
         }
     }
 
-    class WDC2Reader : BaseReader
+    class WDC2Reader : BaseEncryptionSupportingReader
     {
         private const int HeaderSize = 72;
         private const uint WDC2FmtSig = 0x32434457; // WDC2
@@ -290,7 +290,8 @@ namespace DBFileReaderLib.Readers
                 if (sectionsCount == 0 || RecordsCount == 0)
                     return;
 
-                SectionHeader[] sections = reader.ReadArray<SectionHeader>(sectionsCount);
+                var sections = reader.ReadArray<SectionHeader>(sectionsCount).ToList();
+                this.m_sections = sections.OfType<IEncryptableDatabaseSection>().ToList();
 
                 // field meta data
                 m_meta = reader.ReadArray<FieldMetaData>(FieldsCount);

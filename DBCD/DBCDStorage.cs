@@ -1,4 +1,5 @@
 using DBCD.Helpers;
+
 using DBFileReaderLib;
 using System.Collections;
 using System.Collections.Generic;
@@ -65,6 +66,7 @@ namespace DBCD
     {
         string[] AvailableColumns { get; }
 
+        Dictionary<ulong, int> GetEncryptedSections();
         IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader);
     }
 
@@ -76,7 +78,6 @@ namespace DBCD
         private readonly DBReader reader;
 
         string[] IDBCDStorage.AvailableColumns => this.info.availableColumns;
-
         public override string ToString() => $"{this.info.tableName}";
 
         public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBReader(stream), info) { }
@@ -109,5 +110,7 @@ namespace DBCD
             while (enumerator.MoveNext())
                 yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
         }
+        
+        public Dictionary<ulong, int> GetEncryptedSections() => this.reader.GetEncryptedSections();
     }
 }
