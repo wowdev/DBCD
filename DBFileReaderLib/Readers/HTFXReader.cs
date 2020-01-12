@@ -68,7 +68,7 @@ namespace DBFileReaderLib.Readers
                 FieldCache<T> info = fields[i];
                 if (info.IndexMapField)
                 {
-                    info.Setter(entry, Convert.ChangeType(Id, info.Field.FieldType));
+                    info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
                 }
 
@@ -76,20 +76,28 @@ namespace DBFileReaderLib.Readers
 
                 if (info.IsArray)
                 {
-                    if (arrayReaders.TryGetValue(info.Field.FieldType, out var reader))
+                    if (arrayReaders.TryGetValue(info.MetaDataFieldType, out var reader))
                         value = reader(m_data, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
-                    if (simpleReaders.TryGetValue(info.Field.FieldType, out var reader))
+                    if (simpleReaders.TryGetValue(info.MetaDataFieldType, out var reader))
                         value = reader(m_data);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
 
-                info.Setter(entry, value);
+                if (info.IsRelation)
+                {
+                    var casted = Convert.ChangeType(value, info.FieldType);
+                    info.Setter(entry, casted);
+                }
+                else
+                {
+                    info.Setter(entry, value);
+                }
             }
         }
 
