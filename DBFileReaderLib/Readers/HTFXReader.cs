@@ -89,7 +89,7 @@ namespace DBFileReaderLib.Readers
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
 
-                if (info.IsRelation)
+                if (info.IsNonInlineRelation)
                 {
                     var casted = Convert.ChangeType(value, info.FieldType);
                     info.Setter(entry, casted);

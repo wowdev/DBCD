@@ -2,10 +2,10 @@ using System;
 
 namespace DBFileReaderLib.Attributes
 {
-    public class RelationAttribute : Attribute
+    public class NonInlineRelationAttribute : Attribute
     {
         public readonly Type FieldType;
 
-        public RelationAttribute(Type fieldType) => this.FieldType = fieldType;
+        public NonInlineRelationAttribute(Type fieldType) => this.FieldType = fieldType;
     }
 }

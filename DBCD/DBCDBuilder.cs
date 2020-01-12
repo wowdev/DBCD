@@ -85,7 +85,7 @@ namespace DBCD
 
 
                 Type fieldType;
-                if (fieldDefinition.isRelation)
+                if (fieldDefinition.isRelation && fieldDefinition.isRelation)
                 {
                     fieldType = fieldDefinition.arrLength == 0 ? typeof(int) : typeof(int[]);
                 }
@@ -108,10 +108,10 @@ namespace DBCD
                     AddAttribute<CardinalityAttribute>(field, fieldDefinition.arrLength);
                 }
 
-                if (fieldDefinition.isRelation)
+                if (fieldDefinition.isRelation && fieldDefinition.isNonInline)
                 {
                     var metaDataFieldType = FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings);
-                    AddAttribute<RelationAttribute>(field, metaDataFieldType);
+                    AddAttribute<NonInlineRelationAttribute>(field, metaDataFieldType);
                 }
 
                 if (isLocalisedString)

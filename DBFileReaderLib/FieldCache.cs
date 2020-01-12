@@ -9,7 +9,7 @@ namespace DBFileReaderLib
         private readonly FieldInfo Field;
         public readonly bool IsArray = false;
         public readonly bool IsLocalisedString = false;
-        public readonly bool IsRelation = false;
+        public readonly bool IsNonInlineRelation = false;
         public readonly Action<T, object> Setter;
         public readonly LocaleAttribute LocaleInfo;
 
@@ -34,10 +34,10 @@ namespace DBFileReaderLib
             IndexAttribute indexAttribute = (IndexAttribute)Attribute.GetCustomAttribute(field, typeof(IndexAttribute));
             IndexMapField = (indexAttribute != null) ? indexAttribute.NonInline : false;
 
-            RelationAttribute relationAttribute = (RelationAttribute)Attribute.GetCustomAttribute(field, typeof(RelationAttribute));
-            IsRelation = (relationAttribute != null);
+            NonInlineRelationAttribute relationAttribute = (NonInlineRelationAttribute)Attribute.GetCustomAttribute(field, typeof(NonInlineRelationAttribute));
+            IsNonInlineRelation = (relationAttribute != null);
             FieldType = field.FieldType;
-            MetaDataFieldType = IsRelation ? relationAttribute.FieldType : FieldType;
+            MetaDataFieldType = IsNonInlineRelation ? relationAttribute.FieldType : FieldType;
         }
 
         private int GetCardinality(FieldInfo field)
