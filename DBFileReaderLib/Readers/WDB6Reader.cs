@@ -82,7 +82,7 @@ namespace DBFileReaderLib.Readers
                     else
                         Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], m_commonData?[i]);
 
-                    info.Setter(entry, Convert.ChangeType(Id, info.Field.FieldType));
+                    info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
                 }
 
@@ -92,7 +92,7 @@ namespace DBFileReaderLib.Readers
                 // 0x2 SecondaryKey
                 if (fieldIndex >= m_reader.Meta.Length)
                 {
-                    info.Setter(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.Field.FieldType));
+                    info.Setter(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.FieldType));
                     continue;
                 }
 
@@ -101,14 +101,14 @@ namespace DBFileReaderLib.Readers
                     if (info.Cardinality <= 1)
                         SetCardinality(info, fieldIndex);
 
-                    if (arrayReaders.TryGetValue(info.Field.FieldType, out var reader))
+                    if (arrayReaders.TryGetValue(info.FieldType, out var reader))
                         value = reader(Id, m_data, m_fieldMeta[fieldIndex], m_commonData?[fieldIndex], m_reader.StringTable, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
-                    if (simpleReaders.TryGetValue(info.Field.FieldType, out var reader))
+                    if (simpleReaders.TryGetValue(info.FieldType, out var reader))
                         value = reader(Id, m_data, m_fieldMeta[fieldIndex], m_commonData?[fieldIndex], m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);

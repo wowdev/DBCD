@@ -6,7 +6,7 @@ namespace DBFileReaderLib
 {
     class FieldCache<T>
     {
-        public readonly FieldInfo Field;
+        private readonly FieldInfo Field;
         public readonly bool IsArray = false;
         public readonly bool IsLocalisedString = false;
         public readonly bool IsRelation = false;
