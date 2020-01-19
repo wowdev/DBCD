@@ -85,7 +85,7 @@ namespace DBCD
 
 
                 Type fieldType;
-                if (fieldDefinition.isRelation && fieldDefinition.isRelation)
+                if (fieldDefinition.isRelation)
                 {
                     fieldType = fieldDefinition.arrLength == 0 ? typeof(int) : typeof(int[]);
                 }
