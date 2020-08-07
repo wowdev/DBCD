@@ -1,6 +1,7 @@
 using DBCD.Helpers;
 
 using DBFileReaderLib;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -32,6 +33,11 @@ namespace DBCD
         public object this[string fieldName]
         {
             get => fieldAccessor[this.raw, fieldName];
+        }
+
+        public object this[string fieldName, int index]
+        {
+            get => ((Array)this[fieldName]).GetValue(index);
         }
 
         public T Field<T>(string fieldName)
