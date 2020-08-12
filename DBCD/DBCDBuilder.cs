@@ -83,7 +83,17 @@ namespace DBCD
                 var columnDefinition = databaseDefinition.columnDefinitions[fieldDefinition.name];
                 bool isLocalisedString = columnDefinition.type == "locstring" && locStringSize > 1;
 
-                var fieldType = FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings);
+
+                Type fieldType;
+                if (fieldDefinition.isRelation)
+                {
+                    fieldType = fieldDefinition.arrLength == 0 ? typeof(int) : typeof(int[]);
+                }
+                else
+                {
+                    fieldType = FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings);
+                }
+
                 var field = typeBuilder.DefineField(fieldDefinition.name, fieldType, FieldAttributes.Public);
 
                 columns.Add(fieldDefinition.name);
@@ -96,6 +106,12 @@ namespace DBCD
                 if (fieldDefinition.arrLength > 1)
                 {
                     AddAttribute<CardinalityAttribute>(field, fieldDefinition.arrLength);
+                }
+
+                if (fieldDefinition.isRelation && fieldDefinition.isNonInline)
+                {
+                    var metaDataFieldType = FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings);
+                    AddAttribute<NonInlineRelationAttribute>(field, metaDataFieldType);
                 }
 
                 if (isLocalisedString)
