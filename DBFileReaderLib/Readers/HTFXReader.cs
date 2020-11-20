@@ -33,6 +33,7 @@ namespace DBFileReaderLib.Readers
 
         private static Dictionary<Type, Func<BitReader, object>> simpleReaders = new Dictionary<Type, Func<BitReader, object>>
         {
+            [typeof(ulong)] = (data) => GetFieldValue<ulong>(data),
             [typeof(long)] = (data) => GetFieldValue<long>(data),
             [typeof(float)] = (data) => GetFieldValue<float>(data),
             [typeof(int)] = (data) => GetFieldValue<int>(data),
