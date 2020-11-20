@@ -70,7 +70,7 @@ namespace DBFileReaderLib
 
             foreach (var row in records)
             {
-                if (row.IsValid)
+                if (row.IsValid & row.DataSize > 0)
                 {
                     T entry = new T();
                     row.GetFields(fieldCache, entry);
