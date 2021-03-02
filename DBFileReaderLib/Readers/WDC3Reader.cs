@@ -335,10 +335,22 @@ namespace DBFileReaderLib.Readers
                     }
 
                     // skip encrypted sections => has tact key + record data is zero filled
-                    if (section.TactKeyLookup != 0 && Array.TrueForAll(recordsData, x => x == 0))
+                    if (section.TactKeyLookup != 0)
                     {
-                        previousRecordCount += section.NumRecords;
-                        continue;
+                        int sectionNo = sections.IndexOf(section);
+                        int sectionEnd = sectionNo + 1 < sections.Count ? sections[sectionNo + 1].FileOffset : (int)reader.BaseStream.Length;
+
+                        long positionSave = reader.BaseStream.Position;
+                        bool completelyZero = Array.TrueForAll(reader.ReadBytes(sectionEnd - (int)reader.BaseStream.Position), x => x == 0);
+
+                        if (completelyZero)
+                        {
+                            previousRecordCount += section.NumRecords;
+                            continue;
+                        }
+
+                        // section contains data, only record data is all zero (which is possible, e.g. SpellLevels)
+                        reader.BaseStream.Position = positionSave;
                     }
 
                     // index data
