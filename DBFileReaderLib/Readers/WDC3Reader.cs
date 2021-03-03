@@ -337,10 +337,34 @@ namespace DBFileReaderLib.Readers
                     // skip encrypted sections => has tact key + record data is zero filled
                     if (section.TactKeyLookup != 0 && Array.TrueForAll(recordsData, x => x == 0))
                     {
-                        previousRecordCount += section.NumRecords;
-                        continue;
-                    }
+                        bool completelyZero = false;
+                        if (section.IndexDataSize > 0 || section.CopyTableCount > 0)
+                        {
+                            // this will be the record id from m_indexData or m_copyData
+                            // if this is zero then the id for this record will be zero which is invalid
+                            completelyZero = reader.ReadInt32() == 0;
+                            reader.BaseStream.Position -= 4;
+                        }
+                        else if (section.OffsetMapIDCount > 0)
+                        {
+                            // this will be the first m_sparseEntries entry
+                            // confirm it's size is not zero otherwise it is invalid
+                            completelyZero = reader.Read<SparseEntry>().Size == 0;
+                            reader.BaseStream.Position -= 6;
+                        }
+                        else
+                        {
+                            // there is no additional data and recordsData is already known to be zeroed
+                            // therefore the record will have an id of zero which is invalid
+                            completelyZero = true;
+                        }
 
+                        if (completelyZero)
+                        {
+                            previousRecordCount += section.NumRecords;
+                            continue;
+                        }
+                    }
                     // index data
                     m_indexData = reader.ReadArray<int>(section.IndexDataSize / 4);
 
