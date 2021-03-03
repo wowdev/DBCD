@@ -43,19 +43,23 @@ namespace DBFileReaderLib
         {
             foreach (var file in files)
             {
-                if (!File.Exists(file))
-                    continue;
-
-                // parse the new cache
-                var reader = new HTFXReader(file);
-                if (reader.BuildId != BuildId)
-                    continue;
-
-                // add additional hotfix entries
-                _reader.Combine(reader);
+                CombineCache(file);
             }
         }
+        
+        public void CombineCache(string file)
+        {
+            if (!File.Exists(file))
+                return;
 
+            // parse the new cache
+            var reader = new HTFXReader(file);
+            if (reader.BuildId != BuildId)
+                return;
+
+            // add additional hotfix entries
+            _reader.Combine(reader);
+        }
 
         protected virtual void ReadHotfixes<T>(IDictionary<int, T> storage, DBReader dbReader) where T : class, new()
         {
