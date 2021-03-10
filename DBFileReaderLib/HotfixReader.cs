@@ -72,6 +72,12 @@ namespace DBFileReaderLib
             // TODO verify hotfixes need to be applied sequentially
             var records = _reader.GetRecords(dbReader.TableHash).OrderBy(x => x.PushId);
 
+            // Check if there are any valid cached records with data, don't remove row if so. 
+            // Example situation: Blizzard has invalidated TACTKey records in the same DBCache as valid ones.
+            // Without the below check, valid cached TACTKey records would be removed by the invalidated records afterwards.
+            // This only seems to be relevant for cached tables and specifically TACTKey, BroadcastText/ItemSparse only show up single times it seems.
+            var shouldDelete = dbReader.TableHash != 3744420815 || !records.Any(r => r.IsValid && r.PushId == -1 && r.DataSize > 0);
+            
             foreach (var row in records)
             {
                 if (row.IsValid & row.DataSize > 0)
@@ -80,7 +86,7 @@ namespace DBFileReaderLib
                     row.GetFields(fieldCache, entry);
                     storage[row.RecordId] = entry;
                 }
-                else
+                else if(shouldDelete)
                 {
                     storage.Remove(row.RecordId);
                 }
