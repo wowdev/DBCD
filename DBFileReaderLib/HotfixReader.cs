@@ -104,7 +104,7 @@ namespace DBFileReaderLib
             }
         }
 
-        private static RowOp DefaultProcessor(IHotfixEntry row, bool shouldDelete)
+        public static RowOp DefaultProcessor(IHotfixEntry row, bool shouldDelete)
         {
             if (row.IsValid & row.DataSize > 0)
                 return RowOp.Add;
