@@ -74,6 +74,7 @@ namespace DBCD
 
         Dictionary<ulong, int> GetEncryptedSections();
         IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader);
+        IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader, HotfixReader.RowProcessor processor);
     }
 
     public class DBCDStorage<T> : ReadOnlyDictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
@@ -103,9 +104,14 @@ namespace DBCD
 
         public IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader)
         {
+            return this.ApplyingHotfixes(hotfixReader, null);
+        }
+
+        public IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader, HotfixReader.RowProcessor processor)
+        {
             var mutableStorage = this.storage.ToDictionary(k => k.Key, v => v.Value);
 
-            hotfixReader.ApplyHotfixes(mutableStorage, this.reader);
+            hotfixReader.ApplyHotfixes(mutableStorage, this.reader, processor);
 
             return new DBCDStorage<T>(this.reader, new ReadOnlyDictionary<int, T>(mutableStorage), this.info);
         }
