@@ -1,4 +1,5 @@
-﻿using DBFileReaderLib.Readers;
+﻿using DBFileReaderLib.Common;
+using DBFileReaderLib.Readers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,6 +9,8 @@ namespace DBFileReaderLib
 {
     public class HotfixReader
     {
+        public delegate RowOp RowProcessor(IHotfixEntry row, bool shouldDelete);
+
         private readonly HTFXReader _reader;
 
         #region Header
@@ -39,6 +42,9 @@ namespace DBFileReaderLib
 
         public void ApplyHotfixes<T>(IDictionary<int, T> storage, DBReader dbReader) where T : class, new() => ReadHotfixes(storage, dbReader);
 
+        public void ApplyHotfixes<T>(IDictionary<int, T> storage, DBReader dbReader, RowProcessor processor) where T : class, new() 
+            => ReadHotfixes(storage, dbReader, processor);
+
         public void CombineCaches(params string[] files)
         {
             foreach (var file in files)
@@ -61,9 +67,12 @@ namespace DBFileReaderLib
             _reader.Combine(reader);
         }
 
-        protected virtual void ReadHotfixes<T>(IDictionary<int, T> storage, DBReader dbReader) where T : class, new()
+        protected virtual void ReadHotfixes<T>(IDictionary<int, T> storage, DBReader dbReader, RowProcessor processor = null) where T : class, new()
         {
             var fieldCache = typeof(T).GetFields().Select(x => new FieldCache<T>(x)).ToArray();
+
+            if (processor == null)
+                processor = DefaultProcessor;
 
             // Id fields need to be excluded if not inline
             if (dbReader.Flags.HasFlagExt(DB2Flags.Index))
@@ -80,17 +89,36 @@ namespace DBFileReaderLib
             
             foreach (var row in records)
             {
-                if (row.IsValid & row.DataSize > 0)
+                var operation = processor(row, shouldDelete);
+
+                if (operation == RowOp.Add)
                 {
                     T entry = new T();
                     row.GetFields(fieldCache, entry);
                     storage[row.RecordId] = entry;
                 }
-                else if(shouldDelete)
+                else if(operation == RowOp.Delete)
                 {
                     storage.Remove(row.RecordId);
                 }
             }
         }
+
+        public static RowOp DefaultProcessor(IHotfixEntry row, bool shouldDelete)
+        {
+            if (row.IsValid & row.DataSize > 0)
+                return RowOp.Add;
+            else if (shouldDelete)
+                return RowOp.Delete;
+            else
+                return RowOp.Ignore;
+        }
+    }
+
+    public enum RowOp
+    {
+        Add,
+        Delete,
+        Ignore
     }
 }
