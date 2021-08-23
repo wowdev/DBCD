@@ -185,9 +185,38 @@ namespace DBFileReaderLib.Readers
                     reader.BaseStream.Position += 32; // sha hash
                 }
 
+                long length = reader.BaseStream.Length;
+
+                // Version 8 was first seen in 9.1.0.39291 with no actual format changes, likely by error. A new field was added later in build 2.5.2.39570.
+                // This means we have to 'detect' which of the formats this actually is...
+                // NOTE: This method will likely fail on files that don't have at least 2 hotfix entries in them.
+                if (Version == 8 && length > (reader.BaseStream.Position + 24))
+                {
+                    // Save position to go back to later
+                    var prePos = reader.BaseStream.Position;
+
+                    if (reader.ReadUInt32() != HTFXFmtSig)
+                        throw new Exception("Invalid hotfix entry magic!");
+
+                    reader.BaseStream.Position += 16; // Skip ahead by 16 bytes, this includes the 4 bytes _actually_ added in V8
+
+                    var dataSize = reader.ReadInt32();
+
+                    reader.BaseStream.Position += 4 + dataSize; // Skip ahead by 4 bytes + size of hotfix data
+
+                    // Check if we encounter a hotfix signature in the next hotfix record
+                    if (reader.ReadUInt32() != HTFXFmtSig)
+                    {
+                        // Fall back to version 7 reading if we don't encounter HTFX magic
+                        Version = 7;
+                    }
+
+                    // Go back to pre-detection position
+                    reader.BaseStream.Position = prePos;
+                }
+
                 var readerFunc = GetReaderFunc();
 
-                long length = reader.BaseStream.Length;
                 while (reader.BaseStream.Position < length)
                 {
                     magic = reader.ReadUInt32();
@@ -235,8 +264,10 @@ namespace DBFileReaderLib.Readers
                 hotfixType = typeof(HotfixEntryV1);
             else if (Version >= 2 && Version <= 6)
                 hotfixType = typeof(HotfixEntryV2);
-            else if (Version == 7)
+            else if (Version == 7) 
                 hotfixType = typeof(HotfixEntryV7);
+            else if (Version == 8)
+                hotfixType = typeof(HotfixEntryV8);
             else
                 throw new NotSupportedException($"Hotfix version {Version} is not supported");
 
