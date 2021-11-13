@@ -189,7 +189,7 @@ namespace DBFileReaderLib.Readers
 
                 // Version 8 was first seen in 9.1.0.39291 with no actual format changes, likely by error. A new field was added later in build 2.5.2.39570.
                 // This means we have to 'detect' which of the formats this actually is...
-                // NOTE: This method will likely fail on files that don't have at least 2 hotfix entries in them.
+                // NOTE: This method will fail on files that don't have at least 2 hotfix entries in them.
                 if (Version == 8 && length > (reader.BaseStream.Position + 24))
                 {
                     // Save position to go back to later
@@ -202,15 +202,19 @@ namespace DBFileReaderLib.Readers
 
                     var dataSize = reader.ReadInt32();
 
-                    reader.BaseStream.Position += 4 + dataSize; // Skip ahead by 4 bytes + size of hotfix data
+                    if(reader.BaseStream.Length > reader.BaseStream.Position + 4 + dataSize)
+                        reader.BaseStream.Position += 4 + dataSize; // Skip ahead by 4 bytes + size of hotfix data
 
-                    // Check if we encounter a hotfix signature in the next hotfix record
-                    if (reader.ReadUInt32() != HTFXFmtSig)
+                    // Check if we encounter a hotfix signature in the next hotfix record (if exists)
+                    if(reader.BaseStream.Length > reader.BaseStream.Position + 4)
                     {
-                        // Fall back to version 7 reading if we don't encounter HTFX magic
-                        Version = 7;
+                        if (reader.ReadUInt32() != HTFXFmtSig)
+                        {
+                            // Fall back to version 7 reading if we don't encounter HTFX magic
+                            Version = 7;
+                        }
                     }
-
+                        
                     // Go back to pre-detection position
                     reader.BaseStream.Position = prePos;
                 }
