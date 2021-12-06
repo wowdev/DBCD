@@ -85,7 +85,7 @@ namespace DBFileReaderLib
             // Example situation: Blizzard has invalidated TACTKey records in the same DBCache as valid ones.
             // Without the below check, valid cached TACTKey records would be removed by the invalidated records afterwards.
             // This only seems to be relevant for cached tables and specifically TACTKey, BroadcastText/ItemSparse only show up single times it seems.
-            var shouldDelete = dbReader.TableHash != 3744420815 || !records.Any(r => r.IsValid && r.PushId == -1 && r.DataSize > 0);
+            var shouldDelete = (dbReader.TableHash != 3744420815 && dbReader.TableHash != 35137211) || !records.Any(r => r.IsValid && r.PushId == -1 && r.DataSize > 0);
             
             foreach (var row in records)
             {
