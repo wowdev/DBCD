@@ -379,7 +379,14 @@ namespace DBFileReaderLib.Readers
                             m_copyData = new Dictionary<int, int>();
 
                         for (int i = 0; i < section.CopyTableCount; i++)
-                            m_copyData[reader.ReadInt32()] = reader.ReadInt32();
+                        {
+                            var destinationRowID = reader.ReadInt32();
+                            var sourceRowID = reader.ReadInt32();
+                            if(destinationRowID != 0 && sourceRowID != 0)
+                            {
+                                m_copyData[destinationRowID] = sourceRowID;
+                            }
+                        }
                     }
 
                     if (section.OffsetMapIDCount > 0)
