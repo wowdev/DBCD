@@ -382,7 +382,7 @@ namespace DBFileReaderLib.Readers
                         {
                             var destinationRowID = reader.ReadInt32();
                             var sourceRowID = reader.ReadInt32();
-                            if(destinationRowID != 0 && sourceRowID != 0)
+                            if(destinationRowID != sourceRowID)
                             {
                                 m_copyData[destinationRowID] = sourceRowID;
                             }
