@@ -57,8 +57,18 @@ namespace DBFileReaderLib.Readers
             [typeof(sbyte)] = (id, data, recordOffset, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => GetFieldValue<sbyte>(id, data, fieldMeta, columnMeta, palletData, commonData),
             [typeof(byte)] = (id, data, recordOffset, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => GetFieldValue<byte>(id, data, fieldMeta, columnMeta, palletData, commonData),
             [typeof(string)] = (id, data, recordOffset, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => header.Flags.HasFlagExt(DB2Flags.Sparse) ? data.ReadCString() :
-                stringTable[recordOffset + (data.Position >> 3) + GetFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData)],
+                getStringTableRecord(stringTable, recordOffset, id, data, fieldMeta, columnMeta, palletData, commonData),
         };
+
+        private static string getStringTableRecord(Dictionary<long, string> stringTable, int recordOffset, int id, BitReader data, FieldMetaData fieldMeta, ColumnMetaData columnMeta, Value32[] palletData, Dictionary<int, Value32> commonData)
+        {
+            var index = recordOffset + (data.Position >> 3) + GetFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData);
+
+            if (!stringTable.TryGetValue(index, out string result))
+                result = "";
+
+            return result;
+        }
 
         private static Dictionary<Type, Func<BitReader, int, FieldMetaData, ColumnMetaData, Value32[], Dictionary<int, Value32>, Dictionary<long, string>, object>> arrayReaders = new Dictionary<Type, Func<BitReader, int, FieldMetaData, ColumnMetaData, Value32[], Dictionary<int, Value32>, Dictionary<long, string>, object>>
         {
@@ -212,7 +222,17 @@ namespace DBFileReaderLib.Readers
 
                     string[] array = new string[columnMeta.Size / (sizeof(int) * 8)];
                     for (int i = 0; i < array.Length; i++)
-                        array[i] = stringTable[(r.Position >> 3) + recordOffset + r.ReadValue64(bitSize).GetValue<int>()];
+                    {
+                        var index = (r.Position >> 3) + recordOffset + r.ReadValue64(bitSize).GetValue<int>();
+                        if(stringTable.TryGetValue(index, out string result))
+                        {
+                            array[i] = result;
+                        }
+                        else
+                        {
+                            array[i] = "";
+                        }
+                    }
 
                     return array;
             }
