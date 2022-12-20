@@ -62,4 +62,18 @@ namespace DBFileReaderLib.Common
 
         private readonly byte op, pad1, pad2, pad3;
     }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    struct HotfixEntryV9 : IHotfixEntry
+    {
+        public int RegionId { get; }
+        public int PushId { get; }
+        public int UniqueId { get; }
+        public uint TableHash { get; }
+        public int RecordId { get; }
+        public int DataSize { get; }
+        public bool IsValid => op == 1;
+
+        private readonly byte op, pad1, pad2, pad3;
+    }
 }

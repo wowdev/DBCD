@@ -272,6 +272,8 @@ namespace DBFileReaderLib.Readers
                 hotfixType = typeof(HotfixEntryV7);
             else if (Version == 8)
                 hotfixType = typeof(HotfixEntryV8);
+            else if (Version == 9)
+                hotfixType = typeof(HotfixEntryV9);
             else
                 throw new NotSupportedException($"Hotfix version {Version} is not supported");
 
