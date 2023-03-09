@@ -34,6 +34,9 @@ namespace DBFileReaderLib
                 stream.Position = 0;
                 switch (identifier)
                 {
+                    case "WDC4":
+                        _reader = new WDC4Reader(stream);
+                        break;
                     case "WDC3":
                         _reader = new WDC3Reader(stream);
                         break;
