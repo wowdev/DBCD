@@ -287,8 +287,9 @@ namespace DBFileReaderLib.Readers
                 if (sectionsCount == 0 || RecordsCount == 0)
                     return;
 
-                var sections = reader.ReadArray<SectionHeaderWDC3>(sectionsCount).ToList();
+                var sections = reader.ReadArray<SectionHeaderWDC4>(sectionsCount);
                 this.m_sections = sections.OfType<IEncryptableDatabaseSection>().ToList();
+                this.m_encryptedIDs = new Dictionary<int, int[]>();
 
                 // field meta data
                 m_meta = reader.ReadArray<FieldMetaData>(FieldsCount);
@@ -320,7 +321,12 @@ namespace DBFileReaderLib.Readers
                     }
                 }
 
-                // TODO: WDC4 changes
+                // encrypted IDs
+                for(int i = 1; i < sectionsCount; i++)
+                {
+                    var encryptedIDCount = reader.ReadInt32();
+                    this.m_encryptedIDs.Add(i, reader.ReadArray<int>(encryptedIDCount));
+                }
 
                 int previousStringTableSize = 0, previousRecordCount = 0;
                 foreach (var section in sections)

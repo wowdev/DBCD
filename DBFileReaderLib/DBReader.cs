@@ -102,5 +102,17 @@ namespace DBFileReaderLib
 
             return reader.GetEncryptedSections().ToDictionary(s => s.TactKeyLookup, s => s.NumRecords);
         }
+
+        public Dictionary<int, int[]> GetEncryptedIDs()
+        {
+            var reader = this._reader as IEncryptionSupportingReader;
+
+            if (reader == null || reader.GetEncryptedIDs() == null)
+            {
+                return new Dictionary<int, int[]>();
+            }
+
+            return reader.GetEncryptedIDs();
+        }
     }
 }

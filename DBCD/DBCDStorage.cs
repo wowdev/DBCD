@@ -73,6 +73,8 @@ namespace DBCD
         string[] AvailableColumns { get; }
 
         Dictionary<ulong, int> GetEncryptedSections();
+        Dictionary<int, int[]> GetEncryptedIDs();
+
         IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader);
         IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader, HotfixReader.RowProcessor processor);
     }
@@ -124,5 +126,6 @@ namespace DBCD
         }
         
         public Dictionary<ulong, int> GetEncryptedSections() => this.reader.GetEncryptedSections();
+        public Dictionary<int, int[]> GetEncryptedIDs() => this.reader.GetEncryptedIDs();
     }
 }
