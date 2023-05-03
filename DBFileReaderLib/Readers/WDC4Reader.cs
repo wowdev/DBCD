@@ -325,7 +325,12 @@ namespace DBFileReaderLib.Readers
                 for(int i = 1; i < sectionsCount; i++)
                 {
                     var encryptedIDCount = reader.ReadInt32();
-                    this.m_encryptedIDs.Add(i, reader.ReadArray<int>(encryptedIDCount));
+
+                    // If tactkey in section header is 0'd out (before the file gets to DBCD), skip these IDs
+                    if (sections[i].TactKeyLookup == 0)
+                        reader.BaseStream.Position += encryptedIDCount * 4;
+                    else
+                        this.m_encryptedIDs.Add(i, reader.ReadArray<int>(encryptedIDCount));
                 }
 
                 int previousStringTableSize = 0, previousRecordCount = 0;
