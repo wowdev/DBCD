@@ -86,7 +86,14 @@ namespace DBFileReaderLib
                 T entry = new T();
                 row.GetFields(fieldCache, entry);
                 lock (storage)
-                    storage.Add(row.Id, entry);
+                {
+#if NET5_0_OR_GREATER
+                    storage.TryAdd(row.Id, entry);
+#else
+                    if (!storage.ContainsKey(row.Id))
+                        storage.Add(row.Id, entry);
+#endif
+                }
             });
         }
 
