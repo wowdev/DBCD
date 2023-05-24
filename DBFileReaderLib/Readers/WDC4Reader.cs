@@ -224,7 +224,7 @@ namespace DBFileReaderLib.Readers
                     for (int i = 0; i < array.Length; i++)
                     {
                         var index = (r.Position >> 3) + recordOffset + r.ReadValue64(bitSize).GetValue<int>();
-                        if(stringTable.TryGetValue(index, out string result))
+                        if (stringTable.TryGetValue(index, out string result))
                         {
                             array[i] = result;
                         }
@@ -322,7 +322,7 @@ namespace DBFileReaderLib.Readers
                 }
 
                 // encrypted IDs
-                for(int i = 0; i < sectionsCount; i++)
+                for (int i = 0; i < sectionsCount; i++)
                 {
                     // If tactkey in section header is 0'd out (before the file gets to DBCD), skip these IDs
                     if (sections[i].TactKeyLookup == 0)
@@ -414,7 +414,7 @@ namespace DBFileReaderLib.Readers
                         {
                             var destinationRowID = reader.ReadInt32();
                             var sourceRowID = reader.ReadInt32();
-                            if(destinationRowID != sourceRowID)
+                            if (destinationRowID != sourceRowID)
                             {
                                 m_copyData[destinationRowID] = sourceRowID;
                             }
@@ -430,6 +430,16 @@ namespace DBFileReaderLib.Readers
                         m_sparseEntries = reader.ReadArray<SparseEntry>(section.OffsetMapIDCount).ToList();
                     }
 
+                    if (section.OffsetMapIDCount > 0 && Flags.HasFlag(DB2Flags.SecondaryKey))
+                    {
+                        int[] sparseIndexData = reader.ReadArray<int>(section.OffsetMapIDCount);
+
+                        if (section.IndexDataSize > 0 && m_indexData.Length != sparseIndexData.Length)
+                            throw new Exception("m_indexData.Length != sparseIndexData.Length");
+
+                        m_indexData = sparseIndexData;
+                    }
+
                     // reference data
                     ReferenceData refData = new ReferenceData();
                     if (section.ParentLookupDataSize > 0)
@@ -443,7 +453,7 @@ namespace DBFileReaderLib.Readers
                             refData.Entries[entries[i].Index] = entries[i].Id;
                     }
 
-                    if (section.OffsetMapIDCount > 0)
+                    if (section.OffsetMapIDCount > 0 && !Flags.HasFlag(DB2Flags.SecondaryKey))
                     {
                         int[] sparseIndexData = reader.ReadArray<int>(section.OffsetMapIDCount);
 
@@ -468,7 +478,12 @@ namespace DBFileReaderLib.Readers
                             bitReader.Offset = i * RecordSize;
                         }
 
-                        refData.Entries.TryGetValue(i, out int refId);
+                        int refId;
+
+                        if (Flags.HasFlag(DB2Flags.SecondaryKey))
+                            refData.Entries.TryGetValue(m_indexData[i], out refId);
+                        else
+                            refData.Entries.TryGetValue(i, out refId);
 
                         IDBRow rec = new WDC4Row(this, bitReader, section.IndexDataSize != 0 ? m_indexData[i] : -1, refId, i + previousRecordCount);
                         _Records.Add(_Records.Count, rec);
