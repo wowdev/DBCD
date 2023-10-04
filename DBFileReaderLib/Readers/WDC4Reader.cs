@@ -289,7 +289,7 @@ namespace DBFileReaderLib.Readers
 
                 var sections = reader.ReadArray<SectionHeaderWDC4>(sectionsCount);
                 this.m_sections = sections.OfType<IEncryptableDatabaseSection>().ToList();
-                this.m_encryptedIDs = new Dictionary<int, int[]>();
+                this.m_encryptedIDs = new Dictionary<ulong, int[]>();
 
                 // field meta data
                 m_meta = reader.ReadArray<FieldMetaData>(FieldsCount);
@@ -324,12 +324,12 @@ namespace DBFileReaderLib.Readers
                 // encrypted IDs
                 for (int i = 0; i < sectionsCount; i++)
                 {
-                    // If tactkey in section header is 0'd out (before the file gets to DBCD), skip these IDs
+                    // If tactkey in section header is 0'd out (before the file gets to DBCD or section is not encrypted), skip these IDs
                     if (sections[i].TactKeyLookup == 0)
                         continue;
 
                     var encryptedIDCount = reader.ReadInt32();
-                    this.m_encryptedIDs.Add(i, reader.ReadArray<int>(encryptedIDCount));
+                    this.m_encryptedIDs.Add(sections[i].TactKeyLookup, reader.ReadArray<int>(encryptedIDCount));
                 }
 
                 int previousStringTableSize = 0, previousRecordCount = 0;
