@@ -2,7 +2,6 @@ using DBCD.Helpers;
 
 using DBFileReaderLib;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Dynamic;
@@ -73,7 +72,7 @@ namespace DBCD
         string[] AvailableColumns { get; }
 
         Dictionary<ulong, int> GetEncryptedSections();
-        Dictionary<int, int[]> GetEncryptedIDs();
+        Dictionary<ulong, int[]> GetEncryptedIDs();
 
         IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader);
         IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader, HotfixReader.RowProcessor processor);
@@ -124,8 +123,8 @@ namespace DBCD
             while (enumerator.MoveNext())
                 yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
         }
-        
+
         public Dictionary<ulong, int> GetEncryptedSections() => this.reader.GetEncryptedSections();
-        public Dictionary<int, int[]> GetEncryptedIDs() => this.reader.GetEncryptedIDs();
+        public Dictionary<ulong, int[]> GetEncryptedIDs() => this.reader.GetEncryptedIDs();
     }
 }
