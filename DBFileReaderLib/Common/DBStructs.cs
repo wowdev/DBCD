@@ -16,7 +16,7 @@ namespace DBFileReaderLib.Common
     public interface IEncryptionSupportingReader
     {
         List<IEncryptableDatabaseSection> GetEncryptedSections();
-        Dictionary<int, int[]> GetEncryptedIDs();
+        Dictionary<ulong, int[]> GetEncryptedIDs();
     }
 
     struct FieldMetaData
