@@ -135,6 +135,8 @@ namespace DBFileReaderLib.Readers
                     }
                 case CompressionType.Immediate:
                     {
+                        if ((columnMeta.Immediate.Flags & 0x1) == 0x1)
+                            return r.ReadValue64Signed(columnMeta.Immediate.BitWidth).GetValue<T>();
                         return r.ReadValue64(columnMeta.Immediate.BitWidth).GetValue<T>();
                     }
                 case CompressionType.Common:
