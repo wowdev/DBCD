@@ -329,7 +329,11 @@ namespace DBFileReaderLib.Readers
                         continue;
 
                     var encryptedIDCount = reader.ReadInt32();
-                    this.m_encryptedIDs.Add(sections[i].TactKeyLookup, reader.ReadArray<int>(encryptedIDCount));
+                    var encryptedIDs = reader.ReadArray<int>(encryptedIDCount);
+                    if (this.m_encryptedIDs.TryGetValue(sections[i].TactKeyLookup, out int[] ids))
+                        this.m_encryptedIDs[sections[i].TactKeyLookup] = ids.Concat(encryptedIDs).ToArray();
+                    else
+                        this.m_encryptedIDs.Add(sections[i].TactKeyLookup, encryptedIDs);
                 }
 
                 int previousStringTableSize = 0, previousRecordCount = 0;
