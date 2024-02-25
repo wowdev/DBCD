@@ -9,7 +9,8 @@ namespace DBCD.Tests
     public class UnitTest1
     {
         static GithubDBDProvider githubDBDProvider = new GithubDBDProvider();
-        static TestDBCProvider dbcProvider = new TestDBCProvider(Directory.GetCurrentDirectory());
+        static readonly FilesystemDBCProvider dbcProvider = new(Directory.GetCurrentDirectory());
+        static readonly FilesystemDBDProvider dbdProvider = new(Directory.GetCurrentDirectory());
 
         // [TestMethod]
         // public void TestMethod1()
@@ -40,9 +41,6 @@ namespace DBCD.Tests
         [TestMethod]
         public void TestEncryptedInfo()
         {
-            var githubDBDProvider = new GithubDBDProvider();
-            var dbcProvider = new TestDBCProvider(Directory.GetCurrentDirectory());
-
             DBCD dbcd = new DBCD(dbcProvider, githubDBDProvider);
 
             var storage = dbcd.Load("SpellName");
@@ -51,6 +49,15 @@ namespace DBCD.Tests
             {
                 System.Console.WriteLine($"Found encrypted secttion encrypted with key {section.Key} containing {section.Value} rows");
             }
+        }
+
+        [TestMethod]
+        public void TestFilesystemDBDProvider()
+        {
+            DBCD dbcd = new DBCD(dbcProvider, dbdProvider);
+            var storage = dbcd.Load("SpellName", locale: Locale.EnUS);
+            // Spell is present in Classic Era -> Retail: https://www.wowhead.com/spell=17/
+            Assert.AreEqual("Power Word: Shield", storage[17]["Name_lang"]);
         }
     }
 }
