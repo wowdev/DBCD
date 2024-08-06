@@ -69,6 +69,7 @@ namespace DBFileReaderLib.Common
     {
         unsafe fixed byte Value[4];
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T GetValue<T>() where T : struct
         {
             unsafe
@@ -83,6 +84,7 @@ namespace DBFileReaderLib.Common
     {
         unsafe fixed byte Value[8];
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T GetValue<T>() where T : struct
         {
             unsafe
