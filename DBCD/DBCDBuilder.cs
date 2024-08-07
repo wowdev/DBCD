@@ -108,10 +108,10 @@ namespace DBCD
                     AddAttribute<CardinalityAttribute>(field, fieldDefinition.arrLength);
                 }
 
-                if (fieldDefinition.isRelation && fieldDefinition.isNonInline)
+                if (fieldDefinition.isRelation)
                 {
                     var metaDataFieldType = FieldDefinitionToType(fieldDefinition, columnDefinition, localiseStrings);
-                    AddAttribute<NonInlineRelationAttribute>(field, metaDataFieldType);
+                    AddAttribute<RelationAttribute>(field, metaDataFieldType, fieldDefinition.isNonInline);
                 }
 
                 if (isLocalisedString)

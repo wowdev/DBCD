@@ -9,9 +9,13 @@ namespace DBFileReaderLib
         private readonly FieldInfo Field;
         public readonly bool IsArray = false;
         public readonly bool IsLocalisedString = false;
-        public readonly bool IsNonInlineRelation = false;
         public readonly Action<T, object> Setter;
         public readonly LocaleAttribute LocaleInfo;
+
+        public bool IsNonInlineRelation { get; set; } = false;
+        public bool IsRelation { get; set; } = false;
+        public bool IndexMapField { get; set; } = false;
+        public int Cardinality { get; set; } = 1;
 
         // Type of the variable that is used to store the field
         // Might not match the information retrieved from client
@@ -19,9 +23,6 @@ namespace DBFileReaderLib
         public readonly Type FieldType;
         // Type of the variable as defined in client metadata
         public readonly Type MetaDataFieldType;
-
-        public bool IndexMapField { get; set; } = false;
-        public int Cardinality { get; set; } = 1;
 
         public FieldCache(FieldInfo field)
         {
@@ -34,8 +35,9 @@ namespace DBFileReaderLib
             IndexAttribute indexAttribute = (IndexAttribute)Attribute.GetCustomAttribute(field, typeof(IndexAttribute));
             IndexMapField = (indexAttribute != null) ? indexAttribute.NonInline : false;
 
-            NonInlineRelationAttribute relationAttribute = (NonInlineRelationAttribute)Attribute.GetCustomAttribute(field, typeof(NonInlineRelationAttribute));
-            IsNonInlineRelation = (relationAttribute != null);
+            RelationAttribute relationAttribute = (RelationAttribute)Attribute.GetCustomAttribute(field, typeof(RelationAttribute));
+            IsRelation = (relationAttribute != null);
+            IsNonInlineRelation = IsRelation && relationAttribute.IsNonInline;
             FieldType = field.FieldType;
             MetaDataFieldType = IsNonInlineRelation ? relationAttribute.FieldType : FieldType;
         }
