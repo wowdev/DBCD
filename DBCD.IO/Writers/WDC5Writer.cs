@@ -276,7 +276,7 @@ namespace DBCD.IO.Writers
 
     class WDC5Writer<T> : BaseWriter<T> where T : class
     {
-        private const int HeaderSize = 200;
+        private const int HeaderSize = 204;
         private const uint WDC5FmtSig = 0x35434457; // WDC5
 
         public WDC5Writer(WDC5Reader reader, IDictionary<int, T> storage, Stream stream) : base(reader)
@@ -308,9 +308,8 @@ namespace DBCD.IO.Writers
                 int maxIndex = storage.Keys.MaxOrDefault();
 
                 writer.Write(WDC5FmtSig);
-                writer.Write((uint)5); // numaric version
+                writer.Write((uint)5); // numeric version
                 writer.Write(Encoding.ASCII.GetBytes(staticVersionString.PadRight(128, '\0')));
-
                 writer.Write(RecordsCount);
                 writer.Write(FieldsCount);
                 writer.Write(RecordSize);
@@ -345,7 +344,7 @@ namespace DBCD.IO.Writers
                 writer.Write(fileOffset);                       // FileOffset
                 writer.Write(RecordsCount);                     // NumRecords
                 writer.Write(StringTableSize);
-                writer.Write(0);                                // OffsetRecordsEndOffset
+                writer.Write(0);                                // OffsetRecordsEndOffset, this is set after writing the records for sparse tables
                 writer.Write(Flags.HasFlagExt(DB2Flags.Index) ? RecordsCount * 4 : 0);  // IndexDataSize
                 writer.Write(referenceDataSize);                // ParentLookupDataSize
                 writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? RecordsCount : 0); // OffsetMapIDCount
@@ -410,7 +409,7 @@ namespace DBCD.IO.Writers
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     long oldPos = writer.BaseStream.Position;
-                    writer.BaseStream.Position = 92;
+                    writer.BaseStream.Position = HeaderSize + 20;
                     writer.Write((uint)oldPos);
                     writer.BaseStream.Position = oldPos;
                 }
@@ -430,6 +429,10 @@ namespace DBCD.IO.Writers
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
                     writer.WriteArray(SparseEntries.Values.ToArray());
 
+                // sparse data ids (if flag 0x2 is set)
+                if (Flags.HasFlagExt(DB2Flags.Sparse) && Flags.HasFlag(DB2Flags.SecondaryKey))
+                    writer.WriteArray(SparseEntries.Keys.ToArray());
+
                 // reference data
                 if (ReferenceData.Count > 0)
                 {
@@ -440,12 +443,15 @@ namespace DBCD.IO.Writers
                     for (int i = 0; i < ReferenceData.Count; i++)
                     {
                         writer.Write(ReferenceData[i]);
-                        writer.Write(i);
+                        if (Flags.HasFlag(DB2Flags.SecondaryKey))
+                            writer.Write(SparseEntries.Keys.ElementAt(i));
+                        else
+                            writer.Write(i);
                     }
                 }
 
-                // sparse data ids
-                if (Flags.HasFlagExt(DB2Flags.Sparse))
+                // sparse data ids (if flag 0x2 is not set)
+                if (Flags.HasFlagExt(DB2Flags.Sparse) && !Flags.HasFlag(DB2Flags.SecondaryKey))
                     writer.WriteArray(SparseEntries.Keys.ToArray());
             }
         }

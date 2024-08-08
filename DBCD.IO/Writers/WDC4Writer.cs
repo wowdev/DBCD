@@ -339,7 +339,7 @@ namespace DBCD.IO.Writers
                 writer.Write(fileOffset);                       // FileOffset
                 writer.Write(RecordsCount);                     // NumRecords
                 writer.Write(StringTableSize);
-                writer.Write(0);                                // OffsetRecordsEndOffset
+                writer.Write(0);                                // OffsetRecordsEndOffset, this is set after writing the records for sparse tables
                 writer.Write(Flags.HasFlagExt(DB2Flags.Index) ? RecordsCount * 4 : 0);  // IndexDataSize
                 writer.Write(referenceDataSize);                // ParentLookupDataSize
                 writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? RecordsCount : 0); // OffsetMapIDCount
@@ -404,7 +404,7 @@ namespace DBCD.IO.Writers
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     long oldPos = writer.BaseStream.Position;
-                    writer.BaseStream.Position = 92;
+                    writer.BaseStream.Position = HeaderSize + 20;
                     writer.Write((uint)oldPos);
                     writer.BaseStream.Position = oldPos;
                 }
@@ -424,6 +424,10 @@ namespace DBCD.IO.Writers
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
                     writer.WriteArray(SparseEntries.Values.ToArray());
 
+                // sparse data ids (if flag 0x2 is set)
+                if (Flags.HasFlagExt(DB2Flags.Sparse) && Flags.HasFlag(DB2Flags.SecondaryKey))
+                    writer.WriteArray(SparseEntries.Keys.ToArray());
+
                 // reference data
                 if (ReferenceData.Count > 0)
                 {
@@ -434,12 +438,15 @@ namespace DBCD.IO.Writers
                     for (int i = 0; i < ReferenceData.Count; i++)
                     {
                         writer.Write(ReferenceData[i]);
-                        writer.Write(i);
+                        if (Flags.HasFlag(DB2Flags.SecondaryKey))
+                            writer.Write(SparseEntries.Keys.ElementAt(i));
+                        else
+                            writer.Write(i);
                     }
                 }
 
-                // sparse data ids
-                if (Flags.HasFlagExt(DB2Flags.Sparse))
+                // sparse data ids (if flag 0x2 is not set)
+                if (Flags.HasFlagExt(DB2Flags.Sparse) && !Flags.HasFlag(DB2Flags.SecondaryKey))
                     writer.WriteArray(SparseEntries.Keys.ToArray());
             }
         }

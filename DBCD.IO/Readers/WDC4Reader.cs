@@ -283,18 +283,19 @@ namespace DBCD.IO.Readers
                 int palletDataSize = reader.ReadInt32(); // in bytes, sizeof(DBC2PalletValue) == 4
                 int sectionsCount = reader.ReadInt32();
 
-                if (sectionsCount == 0 || RecordsCount == 0)
-                    return;
-
-                var sections = reader.ReadArray<SectionHeaderWDC4>(sectionsCount);
+                var sections = (sectionsCount == 0) ? new List<SectionHeaderWDC4>() : reader.ReadArray<SectionHeaderWDC4>(sectionsCount).ToList();
                 this.m_sections = sections.OfType<IEncryptableDatabaseSection>().ToList();
-                this.m_encryptedIDs = new Dictionary<ulong, int[]>();
 
                 // field meta data
                 Meta = reader.ReadArray<FieldMetaData>(FieldsCount);
 
                 // column meta data
                 ColumnMeta = reader.ReadArray<ColumnMetaData>(FieldsCount);
+
+                if (sectionsCount == 0 || RecordsCount == 0)
+                    return;
+
+                this.m_encryptedIDs = new Dictionary<ulong, int[]>();
 
                 // pallet data
                 PalletData = new Value32[ColumnMeta.Length][];
