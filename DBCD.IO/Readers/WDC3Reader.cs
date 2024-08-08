@@ -10,7 +10,6 @@ namespace DBCD.IO.Readers
 {
     class WDC3Row : IDBRow
     {
-        private BitReader m_data;
         private BaseReader m_reader;
         private readonly int m_dataOffset;
         private readonly int m_dataPosition;
@@ -18,7 +17,7 @@ namespace DBCD.IO.Readers
         private readonly int m_recordIndex;
 
         public int Id { get; set; }
-        public BitReader Data { get => m_data; set => m_data = value; }
+        public BitReader Data { get; set; }
 
         private readonly FieldMetaData[] m_fieldMeta;
         private readonly ColumnMetaData[] ColumnMeta;
@@ -29,12 +28,12 @@ namespace DBCD.IO.Readers
         public WDC3Row(BaseReader reader, BitReader data, int id, int refID, int recordIndex)
         {
             m_reader = reader;
-            m_data = data;
+            Data = data;
             m_recordOffset = (recordIndex * reader.RecordSize) - (reader.RecordsCount * reader.RecordSize);
             m_recordIndex = recordIndex;
 
-            m_dataOffset = m_data.Offset;
-            m_dataPosition = m_data.Position;
+            m_dataOffset = Data.Offset;
+            m_dataPosition = Data.Position;
 
             m_fieldMeta = reader.Meta;
             ColumnMeta = reader.ColumnMeta;
@@ -89,8 +88,8 @@ namespace DBCD.IO.Readers
         {
             int indexFieldOffSet = 0;
 
-            m_data.Position = m_dataPosition;
-            m_data.Offset = m_dataOffset;
+            Data.Position = m_dataPosition;
+            Data.Offset = m_dataOffset;
 
             for (int i = 0; i < fields.Length; i++)
             {
@@ -100,7 +99,7 @@ namespace DBCD.IO.Readers
                     if (Id != -1)
                         indexFieldOffSet++;
                     else
-                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], ColumnMeta[i], PalletData[i], CommonData[i]);
+                        Id = GetFieldValue<int>(0, Data, m_fieldMeta[i], ColumnMeta[i], PalletData[i], CommonData[i]);
 
                     info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
@@ -118,14 +117,14 @@ namespace DBCD.IO.Readers
                 if (info.IsArray)
                 {
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_recordOffset, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable);
+                        value = reader(Data, m_recordOffset, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Id, m_data, m_recordOffset, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable, m_reader);
+                        value = reader(Id, Data, m_recordOffset, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -265,30 +264,27 @@ namespace DBCD.IO.Readers
                 if (magic != WDC3FmtSig)
                     throw new InvalidDataException("WDC3 file is corrupted!");
 
-                RecordsCount = reader.ReadInt32();
-                FieldsCount = reader.ReadInt32();
-                RecordSize = reader.ReadInt32();
-                StringTableSize = reader.ReadInt32();
-                TableHash = reader.ReadUInt32();
-                LayoutHash = reader.ReadUInt32();
-                MinIndex = reader.ReadInt32();
-                MaxIndex = reader.ReadInt32();
-                int locale = reader.ReadInt32();
-                Flags = (DB2Flags)reader.ReadUInt16();
-                IdFieldIndex = reader.ReadUInt16();
-                int totalFieldsCount = reader.ReadInt32();
-                int packedDataOffset = reader.ReadInt32(); // Offset within the field where packed data starts
-                int lookupColumnCount = reader.ReadInt32(); // count of lookup columns
-                int columnMetaDataSize = reader.ReadInt32(); // 24 * NumFields bytes, describes column bit packing, {ushort recordOffset, ushort size, uint additionalDataSize, uint compressionType, uint packedDataOffset or commonvalue, uint cellSize, uint cardinality}[NumFields], sizeof(DBC2CommonValue) == 8
-                int commonDataSize = reader.ReadInt32();
-                int palletDataSize = reader.ReadInt32(); // in bytes, sizeof(DBC2PalletValue) == 4
-                int sectionsCount = reader.ReadInt32();
+                RecordsCount            = reader.ReadInt32();
+                FieldsCount             = reader.ReadInt32();
+                RecordSize              = reader.ReadInt32();
+                StringTableSize         = reader.ReadInt32();
+                TableHash               = reader.ReadUInt32();
+                LayoutHash              = reader.ReadUInt32();
+                MinIndex                = reader.ReadInt32();
+                MaxIndex                = reader.ReadInt32();
+                Locale                  = reader.ReadInt32();
+                Flags                   = (DB2Flags)reader.ReadUInt16();
+                IdFieldIndex            = reader.ReadUInt16();
+                int totalFieldsCount    = reader.ReadInt32();
+                PackedDataOffset        = reader.ReadInt32();   // Offset within the field where packed data starts
+                int lookupColumnCount   = reader.ReadInt32();   // count of lookup columns
+                int columnMetaDataSize  = reader.ReadInt32();   // 24 * NumFields bytes, describes column bit packing, {ushort recordOffset, ushort size, uint additionalDataSize, uint compressionType, uint packedDataOffset or commonvalue, uint cellSize, uint cardinality}[NumFields], sizeof(DBC2CommonValue) == 8
+                int commonDataSize      = reader.ReadInt32();
+                int palletDataSize      = reader.ReadInt32();   // in bytes, sizeof(DBC2PalletValue) == 4
+                int sectionsCount       = reader.ReadInt32();
 
-                if (sectionsCount == 0 || RecordsCount == 0)
-                    return;
-
-                var sections = reader.ReadArray<SectionHeaderWDC3>(sectionsCount).ToList();
-                this.m_sections = sections.OfType<IEncryptableDatabaseSection>().ToList();
+                var sections = (sectionsCount == 0) ? new List<SectionHeaderWDC3>() : reader.ReadArray<SectionHeaderWDC3>(sectionsCount).ToList();
+                m_sections = sections.OfType<IEncryptableDatabaseSection>().ToList();
 
                 // field meta data
                 Meta = reader.ReadArray<FieldMetaData>(FieldsCount);

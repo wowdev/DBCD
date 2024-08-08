@@ -10,14 +10,13 @@ namespace DBCD.IO.Readers
 {
     class WDB6Row : IDBRow
     {
-        private BitReader m_data;
         private BaseReader m_reader;
         private readonly int m_dataOffset;
         private readonly int m_dataPosition;
         private readonly int m_recordIndex;
 
         public int Id { get; set; }
-        public BitReader Data { get => m_data; set => m_data = value; }
+        public BitReader Data { get; set; }
 
         private readonly FieldMetaData[] m_fieldMeta;
         private readonly Dictionary<int, Value32>[] CommonData;
@@ -25,11 +24,11 @@ namespace DBCD.IO.Readers
         public WDB6Row(BaseReader reader, BitReader data, int id, int recordIndex)
         {
             m_reader = reader;
-            m_data = data;
+            Data = data;
             m_recordIndex = recordIndex;
 
-            m_dataOffset = m_data.Offset;
-            m_dataPosition = m_data.Position;
+            m_dataOffset = Data.Offset;
+            m_dataPosition = Data.Position;
 
             m_fieldMeta = reader.Meta;
             CommonData = reader.CommonData;
@@ -69,8 +68,8 @@ namespace DBCD.IO.Readers
         {
             int indexFieldOffSet = 0;
 
-            m_data.Position = m_dataPosition;
-            m_data.Offset = m_dataOffset;
+            Data.Position = m_dataPosition;
+            Data.Offset = m_dataOffset;
 
             for (int i = 0; i < fields.Length; i++)
             {
@@ -80,7 +79,7 @@ namespace DBCD.IO.Readers
                     if (Id != -1)
                         indexFieldOffSet++;
                     else
-                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], CommonData?[i]);
+                        Id = GetFieldValue<int>(0, Data, m_fieldMeta[i], CommonData?[i]);
 
                     info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
@@ -102,14 +101,14 @@ namespace DBCD.IO.Readers
                         SetCardinality(info, fieldIndex);
 
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Id, m_data, m_fieldMeta[fieldIndex], CommonData?[fieldIndex], m_reader.StringTable, info.Cardinality);
+                        value = reader(Id, Data, m_fieldMeta[fieldIndex], CommonData?[fieldIndex], m_reader.StringTable, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Id, m_data, m_fieldMeta[fieldIndex], CommonData?[fieldIndex], m_reader.StringTable, m_reader);
+                        value = reader(Id, Data, m_fieldMeta[fieldIndex], CommonData?[fieldIndex], m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -177,7 +176,7 @@ namespace DBCD.IO.Readers
         private const uint WDB6FmtSig = 0x36424457; // WDB6
 
         // CommonData type enum to bit size
-        private readonly Dictionary<byte, short> CommonDataTypeBits = new Dictionary<byte, short>
+        private readonly Dictionary<byte, short> CommonTypeBits = new Dictionary<byte, short>
         {
             { 0, 0 },  // string
             { 1, 16 }, // short
@@ -190,7 +189,7 @@ namespace DBCD.IO.Readers
 
         public WDB6Reader(Stream stream)
         {
-            using (var reader = new BinaryReader(stream))
+            using (var reader = new BinaryReader(stream, Encoding.UTF8))
             {
                 if (reader.BaseStream.Length < HeaderSize)
                     throw new InvalidDataException("WDB6 file is corrupted!");
@@ -215,13 +214,11 @@ namespace DBCD.IO.Readers
                 int totalFieldCount = reader.ReadInt32();
                 int commonDataSize = reader.ReadInt32();
 
+                // field meta data
+                Meta = reader.ReadArray<FieldMetaData>(FieldsCount);
+
                 if (RecordsCount == 0)
                     return;
-
-                // field meta data
-                var meta = reader.ReadArray<FieldMetaData>(FieldsCount);
-                Array.Resize(ref meta, totalFieldCount);
-                Meta = meta;
 
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
@@ -285,6 +282,8 @@ namespace DBCD.IO.Readers
 
                 if (commonDataSize > 0)
                 {
+                    Array.Resize(ref Meta, totalFieldCount);
+
                     int fieldCount = reader.ReadInt32();
                     CommonData = new Dictionary<int, Value32>[fieldCount];
 
@@ -297,7 +296,7 @@ namespace DBCD.IO.Readers
                     {
                         int count = reader.ReadInt32();
                         byte type = reader.ReadByte();
-                        int size = CommonDataIsAligned ? 4 : (32 - CommonDataTypeBits[type]) >> 3;
+                        int size = CommonDataIsAligned ? 4 : (32 - CommonTypeBits[type]) >> 3;
 
                         // add the new meta entry
                         if (i > FieldsCount)
@@ -306,7 +305,7 @@ namespace DBCD.IO.Readers
 
                             Meta[i] = new FieldMetaData()
                             {
-                                Bits = CommonDataTypeBits[type],
+                                Bits = CommonTypeBits[type],
                                 Offset = (short)(Meta[i - 1].Offset + ((32 - Meta[i - 1].Bits) >> 3))
                             };
                         }

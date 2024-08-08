@@ -9,27 +9,26 @@ namespace DBCD.IO.Readers
 {
     class WDB5Row : IDBRow
     {
-        private BitReader m_data;
         private BaseReader m_reader;
         private readonly int m_dataOffset;
         private readonly int m_dataPosition;
         private readonly int m_recordIndex;
 
         public int Id { get; set; }
-        public BitReader Data { get => m_data; set => m_data = value; }
+        public BitReader Data { get; set; }
 
         private readonly FieldMetaData[] m_fieldMeta;
 
         public WDB5Row(BaseReader reader, BitReader data, int id, int recordIndex)
         {
             m_reader = reader;
-            m_data = data;
+            Data = data;
             m_recordIndex = recordIndex;
 
             Id = id;
 
-            m_dataOffset = m_data.Offset;
-            m_dataPosition = m_data.Position;
+            m_dataOffset = Data.Offset;
+            m_dataPosition = Data.Position;
             m_fieldMeta = reader.Meta;
         }
 
@@ -65,8 +64,8 @@ namespace DBCD.IO.Readers
         {
             int indexFieldOffSet = 0;
 
-            m_data.Position = m_dataPosition;
-            m_data.Offset = m_dataOffset;
+            Data.Position = m_dataPosition;
+            Data.Offset = m_dataOffset;
 
             for (int i = 0; i < fields.Length; i++)
             {
@@ -76,7 +75,7 @@ namespace DBCD.IO.Readers
                     if (Id != -1)
                         indexFieldOffSet++;
                     else
-                        Id = GetFieldValue<int>(m_data, m_fieldMeta[i]);
+                        Id = GetFieldValue<int>(Data, m_fieldMeta[i]);
 
                     info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
@@ -98,14 +97,14 @@ namespace DBCD.IO.Readers
                         SetCardinality(info, fieldIndex);
 
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_fieldMeta[fieldIndex], m_reader.StringTable, info.Cardinality);
+                        value = reader(Data, m_fieldMeta[fieldIndex], m_reader.StringTable, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_fieldMeta[fieldIndex], m_reader.StringTable, m_reader);
+                        value = reader(Data, m_fieldMeta[fieldIndex], m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -158,14 +157,14 @@ namespace DBCD.IO.Readers
 
     class WDB5Reader : BaseReader
     {
-        private const int HeaderSize = 48;
+        private const int HeaderSize = 52;
         private const uint WDB5FmtSig = 0x35424457; // WDB5
 
         public WDB5Reader(string dbcFile) : this(new FileStream(dbcFile, FileMode.Open)) { }
 
         public WDB5Reader(Stream stream)
         {
-            using (var reader = new BinaryReader(stream))
+            using (var reader = new BinaryReader(stream, Encoding.UTF8))
             {
                 if (reader.BaseStream.Length < HeaderSize)
                     throw new InvalidDataException("WDB5 file is corrupted!");
@@ -188,11 +187,11 @@ namespace DBCD.IO.Readers
                 Flags = (DB2Flags)reader.ReadUInt16();
                 IdFieldIndex = reader.ReadUInt16();
 
-                if (RecordsCount == 0)
-                    return;
-
                 // field meta data
                 Meta = reader.ReadArray<FieldMetaData>(FieldsCount);
+
+                if (RecordsCount == 0)
+                    return;
 
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {

@@ -1,26 +1,25 @@
-﻿using DBCD.IO.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using DBCD.IO.Common;
 
 namespace DBCD.IO.Readers
 {
     class WDB2Row : IDBRow
     {
-        private BitReader m_data;
         private BaseReader m_reader;
         private readonly int m_recordIndex;
 
         public int Id { get; set; }
-        public BitReader Data { get => m_data; set => m_data = value; }
+        public BitReader Data { get; set; }
 
         public WDB2Row(BaseReader reader, BitReader data, int recordIndex)
         {
             m_reader = reader;
-            m_data = data;
+            Data = data;
             m_recordIndex = recordIndex + 1;
 
             Id = m_recordIndex = recordIndex + 1;
@@ -61,7 +60,7 @@ namespace DBCD.IO.Readers
                 FieldCache<T> info = fields[i];
                 if (info.IndexMapField)
                 {
-                    Id = GetFieldValue<int>(m_data);
+                    Id = GetFieldValue<int>(Data);
                     info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
                 }
@@ -71,20 +70,20 @@ namespace DBCD.IO.Readers
                 if (info.IsArray)
                 {
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_reader.StringTable, info.Cardinality);
+                        value = reader(Data, m_reader.StringTable, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else if (info.IsLocalisedString)
                 {
-                    m_data.Position += 32 * info.LocaleInfo.Locale;
-                    value = simpleReaders[typeof(string)](m_data, m_reader.StringTable, m_reader);
-                    m_data.Position += 32 * (info.LocaleInfo.LocaleCount - info.LocaleInfo.Locale);
+                    Data.Position += 32 * info.LocaleInfo.Locale;
+                    value = simpleReaders[typeof(string)](Data, m_reader.StringTable, m_reader);
+                    Data.Position += 32 * (info.LocaleInfo.LocaleCount - info.LocaleInfo.Locale);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_reader.StringTable, m_reader);
+                        value = reader(Data, m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -123,7 +122,7 @@ namespace DBCD.IO.Readers
 
         public WDB2Reader(Stream stream)
         {
-            using (var reader = new BinaryReader(stream))
+            using (var reader = new BinaryReader(stream, Encoding.UTF8))
             {
                 if (reader.BaseStream.Length < HeaderSize)
                     throw new InvalidDataException("WDB2 file is corrupted!");

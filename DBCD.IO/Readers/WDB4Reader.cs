@@ -10,25 +10,24 @@ namespace DBCD.IO.Readers
 {
     class WDB4Row : IDBRow
     {
-        private BitReader m_data;
         private BaseReader m_reader;
         private readonly int m_dataOffset;
         private readonly int m_dataPosition;
         private readonly int m_recordIndex;
 
         public int Id { get; set; }
-        public BitReader Data { get => m_data; set => m_data = value; }
+        public BitReader Data { get; set; }
 
         public WDB4Row(BaseReader reader, BitReader data, int id, int recordIndex)
         {
             m_reader = reader;
-            m_data = data;
+            Data = data;
             m_recordIndex = recordIndex;
 
             Id = id;
 
-            m_dataOffset = m_data.Offset;
-            m_dataPosition = m_data.Position;
+            m_dataOffset = Data.Offset;
+            m_dataPosition = Data.Position;
         }
 
         private static Dictionary<Type, Func<BitReader, Dictionary<long, string>, BaseReader, object>> simpleReaders = new Dictionary<Type, Func<BitReader, Dictionary<long, string>, BaseReader, object>>
@@ -63,8 +62,8 @@ namespace DBCD.IO.Readers
         {
             int indexFieldOffSet = 0;
 
-            m_data.Position = m_dataPosition;
-            m_data.Offset = m_dataOffset;
+            Data.Position = m_dataPosition;
+            Data.Offset = m_dataOffset;
 
             for (int i = 0; i < fields.Length; i++)
             {
@@ -74,7 +73,7 @@ namespace DBCD.IO.Readers
                     if (Id != -1)
                         indexFieldOffSet++;
                     else
-                        Id = GetFieldValue<int>(m_data);
+                        Id = GetFieldValue<int>(Data);
 
                     info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
@@ -93,14 +92,14 @@ namespace DBCD.IO.Readers
                 if (info.IsArray)
                 {
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_reader.StringTable, info.Cardinality);
+                        value = reader(Data, m_reader.StringTable, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_reader.StringTable, m_reader);
+                        value = reader(Data, m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -138,7 +137,7 @@ namespace DBCD.IO.Readers
 
         public WDB4Reader(Stream stream)
         {
-            using (var reader = new BinaryReader(stream))
+            using (var reader = new BinaryReader(stream, Encoding.UTF8))
             {
                 if (reader.BaseStream.Length < HeaderSize)
                     throw new InvalidDataException("WDB4 file is corrupted!");
