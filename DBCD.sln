@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DBCD.IO", "DBCD.IO\DBCD.IO.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DBCD.Tests", "DBCD.Tests\DBCD.Tests.csproj", "{96CFC512-3818-487F-8FB6-7632E340ABB9}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DBCD.Benchmark", "DBCD.Benchmark\DBCD.Benchmark.csproj", "{5EA3D33B-9901-48CB-B558-0D8A90F2CD7C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{96CFC512-3818-487F-8FB6-7632E340ABB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{96CFC512-3818-487F-8FB6-7632E340ABB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{96CFC512-3818-487F-8FB6-7632E340ABB9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5EA3D33B-9901-48CB-B558-0D8A90F2CD7C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5EA3D33B-9901-48CB-B558-0D8A90F2CD7C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5EA3D33B-9901-48CB-B558-0D8A90F2CD7C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5EA3D33B-9901-48CB-B558-0D8A90F2CD7C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
