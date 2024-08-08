@@ -43,15 +43,8 @@ namespace DBCD.IO.Readers
 
         public void Enumerate(Action<IDBRow> action)
         {
-            try
-            {
-                Parallel.ForEach(_Records.Values, action);
-                Parallel.ForEach(GetCopyRows(), action);
-            }
-            catch (AggregateException ex)
-            {
-                throw ex.InnerException;
-            }
+            Parallel.ForEach(_Records.Values, action);
+            Parallel.ForEach(GetCopyRows(), action);
         }
 
         public void Clear()
