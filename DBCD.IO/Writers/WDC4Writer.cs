@@ -4,10 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace DBCD.IO.Writers
 {
-    class WDC1RowSerializer<T> : IDBRowSerializer<T> where T : class
+    class WDC4RowSerializer<T> : IDBRowSerializer<T> where T : class
     {
         public IDictionary<int, BitWriter> Records { get; private set; }
 
@@ -17,10 +18,7 @@ namespace DBCD.IO.Writers
         private readonly OrderedHashSet<Value32[]>[] PalletData;
         private readonly Dictionary<int, Value32>[] CommonData;
 
-        private static readonly Value32Comparer Value32Comparer = new Value32Comparer();
-
-
-        public WDC1RowSerializer(BaseWriter<T> writer)
+        public WDC4RowSerializer(BaseWriter<T> writer)
         {
             m_writer = writer;
             m_fieldMeta = m_writer.Meta;
@@ -42,7 +40,6 @@ namespace DBCD.IO.Writers
             BitWriter bitWriter = new BitWriter(m_writer.RecordSize);
 
             int indexFieldOffSet = 0;
-
             for (int i = 0; i < m_writer.FieldCache.Length; i++)
             {
                 FieldCache<T> info = m_writer.FieldCache[i];
@@ -54,6 +51,13 @@ namespace DBCD.IO.Writers
                 }
 
                 int fieldIndex = i - indexFieldOffSet;
+
+                // reference data field
+                if (fieldIndex >= m_writer.Meta.Length)
+                {
+                    m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+                    continue;
+                }
 
                 // relationship field, used for faster lookup on IDs
                 if (info.IsRelation)
@@ -92,6 +96,67 @@ namespace DBCD.IO.Writers
                 int key = copygroup.First().Key;
                 foreach (var copy in copygroup.Skip(1))
                     m_writer.CopyData[copy.Key] = key;
+            }
+        }
+
+        public void UpdateStringOffsets(IDictionary<int, T> rows)
+        {
+            if (m_writer.Flags.HasFlagExt(DB2Flags.Sparse) || m_writer.StringTableSize <= 1)
+                return;
+
+            int indexFieldOffSet = 0;
+            var fieldInfos = new Dictionary<int, FieldCache<T>>();
+            for (int i = 0; i < m_writer.FieldCache.Length; i++)
+            {
+                if (i == m_writer.IdFieldIndex && m_writer.Flags.HasFlagExt(DB2Flags.Index))
+                    indexFieldOffSet++;
+                else if (m_writer.FieldCache[i].Field.FieldType == typeof(string))
+                    fieldInfos[i - indexFieldOffSet] = m_writer.FieldCache[i];
+                else if (m_writer.FieldCache[i].Field.FieldType == typeof(string[]))
+                    fieldInfos[i - indexFieldOffSet] = m_writer.FieldCache[i];
+            }
+
+            if (fieldInfos.Count == 0)
+                return;
+
+            int recordOffset = (Records.Count - m_writer.CopyData.Count) * m_writer.RecordSize;
+            int fieldOffset = 0;
+            foreach (var record in Records)
+            {
+                // skip copy records
+                if (m_writer.CopyData.ContainsKey(record.Key))
+                    continue;
+
+                foreach (var fieldInfo in fieldInfos)
+                {
+                    int index = fieldInfo.Key;
+                    var info = fieldInfo.Value;
+
+                    var columnMeta = ColumnMeta[index];
+                    if (columnMeta.CompressionType != CompressionType.None)
+                        throw new Exception("CompressionType != CompressionType.None");
+
+                    int bitSize = 32 - m_fieldMeta[index].Bits;
+                    if (bitSize <= 0)
+                        bitSize = columnMeta.Immediate.BitWidth;
+
+                    if (info.IsArray)
+                    {
+                        var array = (string[])info.Getter(rows[record.Key]);
+                        for (int i = 0; i < array.Length; i++)
+                        {
+                            fieldOffset = m_writer.StringTable[array[i]] + (recordOffset) - (sizeof(int) * i) - (columnMeta.RecordOffset / 8);
+                            record.Value.Write(fieldOffset, bitSize, columnMeta.RecordOffset + (i * bitSize));
+                        }
+                    }
+                    else
+                    {
+                        fieldOffset = m_writer.StringTable[(string)info.Getter(rows[record.Key])] + recordOffset - (columnMeta.RecordOffset / 8);
+                        record.Value.Write(fieldOffset, bitSize, columnMeta.RecordOffset);
+                    }
+                }
+
+                recordOffset -= m_writer.RecordSize;
             }
         }
 
@@ -145,6 +210,7 @@ namespace DBCD.IO.Writers
                         break;
                     }
                 case CompressionType.Immediate:
+                case CompressionType.SignedImmediate:
                     {
                         r.Write((TType)value, columnMeta.Immediate.BitWidth);
                         break;
@@ -158,7 +224,6 @@ namespace DBCD.IO.Writers
                 case CompressionType.Pallet:
                     {
                         Value32[] array = new[] { Value32.Create(value) };
-
                         int palletIndex = palletData.IndexOf(array);
                         if (palletIndex == -1)
                         {
@@ -208,12 +273,12 @@ namespace DBCD.IO.Writers
         }
     }
 
-    class WDC1Writer<T> : BaseWriter<T> where T : class
+    class WDC4Writer<T> : BaseWriter<T> where T : class
     {
-        private const int HeaderSize = 84;
-        private const uint WDC1FmtSig = 0x31434457; // WDC1
+        private const int HeaderSize = 72;
+        private const uint WDC4FmtSig = 0x34434457; // WDC4
 
-        public WDC1Writer(WDC1Reader reader, IDictionary<int, T> storage, Stream stream) : base(reader)
+        public WDC4Writer(WDC4Reader reader, IDictionary<int, T> storage, Stream stream) : base(reader)
         {
             // always 2 empties
             StringTableSize++;
@@ -221,12 +286,14 @@ namespace DBCD.IO.Writers
             PackedDataOffset = reader.PackedDataOffset;
             HandleCompression(storage);
 
-            WDC1RowSerializer<T> serializer = new WDC1RowSerializer<T>(this);
+            WDC4RowSerializer<T> serializer = new WDC4RowSerializer<T>(this);
             serializer.Serialize(storage);
 
             // We write the copy rows if and only if it saves space and the table hasn't any reference rows.
             if ((RecordSize) >= sizeof(int) * 2 && ReferenceData.Count == 0)
                 serializer.GetCopyRows();
+
+            serializer.UpdateStringOffsets(storage);
 
             RecordsCount = serializer.Records.Count - CopyData.Count;
 
@@ -236,77 +303,50 @@ namespace DBCD.IO.Writers
             {
                 int minIndex = storage.Keys.MinOrDefault();
                 int maxIndex = storage.Keys.MaxOrDefault();
-                int copyTableSize = Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : CopyData.Count * 8;
 
-                writer.Write(WDC1FmtSig);
+                writer.Write(WDC4FmtSig);
                 writer.Write(RecordsCount);
                 writer.Write(FieldsCount);
                 writer.Write(RecordSize);
-                writer.Write(StringTableSize);
+                writer.Write(storage.Count != 0 ? StringTableSize : 0);
                 writer.Write(reader.TableHash);
                 writer.Write(reader.LayoutHash);
                 writer.Write(minIndex);
                 writer.Write(maxIndex);
                 writer.Write(reader.Locale);
-                writer.Write(copyTableSize);
                 writer.Write((ushort)Flags);
                 writer.Write((ushort)IdFieldIndex);
 
-                writer.Write(FieldsCount); // totalFieldCount
-                writer.Write(PackedDataOffset);
-                writer.Write(ReferenceData.Count > 0 ? 1 : 0);  // RelationshipColumnCount
-                writer.Write(0); // sparseTableOffset
+                writer.Write(FieldsCount);                                                  // totalFieldCount
+                writer.Write(storage.Count != 0 ? PackedDataOffset : 0);
+                writer.Write(storage.Count != 0 ? (ReferenceData.Count > 0 ? 1 : 0) : 0);   // RelationshipColumnCount
+                writer.Write(storage.Count != 0 ? ColumnMeta.Length * 24 : 0);              // ColumnMetaDataSize
+                writer.Write(storage.Count != 0 ? commonDataSize : 0);
+                writer.Write(storage.Count != 0 ? palletDataSize : 0);
+                writer.Write(storage.Count != 0 ? 1 : 0);                                   // sections count
+
+                if (storage.Count == 0)
+                {
+                    // only need to write field structure if empty
+                    writer.WriteArray(Meta);
+                    return;
+                }
+
+                // section header
+                int fileOffset = HeaderSize + (Meta.Length * 4) + (ColumnMeta.Length * 24) + Unsafe.SizeOf<SectionHeaderWDC4>() + palletDataSize + commonDataSize;
+
+                writer.Write(0UL);                              // TactKeyLookup
+                writer.Write(fileOffset);                       // FileOffset
+                writer.Write(RecordsCount);                     // NumRecords
+                writer.Write(StringTableSize);
+                writer.Write(0);                                // OffsetRecordsEndOffset
                 writer.Write(Flags.HasFlagExt(DB2Flags.Index) ? RecordsCount * 4 : 0);  // IndexDataSize
-                writer.Write(ColumnMeta.Length * 24); // ColumnMetaDataSize
-                writer.Write(commonDataSize);
-                writer.Write(palletDataSize);
-                writer.Write(referenceDataSize);
+                writer.Write(referenceDataSize);                // ParentLookupDataSize
+                writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? RecordsCount : 0); // OffsetMapIDCount
+                writer.Write(CopyData.Count);                   // CopyTableCount
 
                 // field meta
                 writer.WriteArray(Meta);
-
-                if (storage.Count == 0)
-                    return;
-
-                // record data
-                uint recordsOffset = (uint)writer.BaseStream.Position;
-                foreach (var record in serializer.Records)
-                    if (!CopyData.TryGetValue(record.Key, out int parent))
-                        record.Value.CopyTo(writer.BaseStream);
-
-                // string table
-                if (!Flags.HasFlagExt(DB2Flags.Sparse))
-                {
-                    writer.WriteCString("");
-                    foreach (var str in StringTable)
-                        writer.WriteCString(str.Key);
-                }
-
-                // sparse data
-                if (Flags.HasFlagExt(DB2Flags.Sparse))
-                {
-                    // set the sparseTableOffset
-                    long oldPos = writer.BaseStream.Position;
-                    writer.BaseStream.Position = 60;
-                    writer.Write((uint)oldPos);
-                    writer.BaseStream.Position = oldPos;
-
-                    WriteOffsetRecords(writer, serializer, recordsOffset, maxIndex - minIndex + 1);
-                }
-
-                // index table
-                if (Flags.HasFlagExt(DB2Flags.Index))
-                    writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
-
-                // copy table
-                if (!Flags.HasFlagExt(DB2Flags.Sparse))
-                {
-                    foreach (var copyRecord in CopyData.OrderBy(r => r.Value))
-                    {
-                        writer.Write(copyRecord.Key);
-                        writer.Write(copyRecord.Value);
-                    }
-                }
 
                 // column meta data
                 writer.WriteArray(ColumnMeta);
@@ -334,6 +374,56 @@ namespace DBCD.IO.Writers
                     }
                 }
 
+                // no need for encrypted_status since we're just writing one section with tact_key_hash == 0
+
+                // record data
+                var SparseEntries = new Dictionary<int, SparseEntry>(storage.Count);
+                foreach (var record in serializer.Records)
+                {
+                    if (!CopyData.TryGetValue(record.Key, out int parent))
+                    {
+                        SparseEntries.Add(record.Key, new SparseEntry()
+                        {
+                            Offset = (uint)writer.BaseStream.Position,
+                            Size = (ushort)record.Value.TotalBytesWrittenOut
+                        });
+
+                        record.Value.CopyTo(writer.BaseStream);
+                    }
+                }
+
+                // string table
+                if (!Flags.HasFlagExt(DB2Flags.Sparse))
+                {
+                    writer.WriteCString("");
+                    foreach (var str in StringTable)
+                        writer.WriteCString(str.Key);
+                }
+
+                // set the OffsetRecordsEndOffset
+                if (Flags.HasFlagExt(DB2Flags.Sparse))
+                {
+                    long oldPos = writer.BaseStream.Position;
+                    writer.BaseStream.Position = 92;
+                    writer.Write((uint)oldPos);
+                    writer.BaseStream.Position = oldPos;
+                }
+
+                // index table
+                if (Flags.HasFlagExt(DB2Flags.Index))
+                    writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
+
+                // copy table (must be ordered by value)
+                foreach (var copyRecord in CopyData.OrderBy(r => r.Value))
+                {
+                    writer.Write(copyRecord.Key);
+                    writer.Write(copyRecord.Value);
+                }
+
+                // sparse data
+                if (Flags.HasFlagExt(DB2Flags.Sparse))
+                    writer.WriteArray(SparseEntries.Values.ToArray());
+
                 // reference data
                 if (ReferenceData.Count > 0)
                 {
@@ -347,6 +437,10 @@ namespace DBCD.IO.Writers
                         writer.Write(i);
                     }
                 }
+
+                // sparse data ids
+                if (Flags.HasFlagExt(DB2Flags.Sparse))
+                    writer.WriteArray(SparseEntries.Keys.ToArray());
             }
         }
 

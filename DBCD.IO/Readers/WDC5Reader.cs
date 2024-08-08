@@ -1,4 +1,4 @@
-﻿using DBFileReaderLib.Common;
+﻿using DBCD.IO.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -6,7 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace DBFileReaderLib.Readers
+namespace DBCD.IO.Readers
 {
     class WDC5Row : IDBRow
     {
@@ -21,9 +21,9 @@ namespace DBFileReaderLib.Readers
         public BitReader Data { get => m_data; set => m_data = value; }
 
         private readonly FieldMetaData[] m_fieldMeta;
-        private readonly ColumnMetaData[] m_columnMeta;
-        private readonly Value32[][] m_palletData;
-        private readonly Dictionary<int, Value32>[] m_commonData;
+        private readonly ColumnMetaData[] ColumnMeta;
+        private readonly Value32[][] PalletData;
+        private readonly Dictionary<int, Value32>[] CommonData;
         private readonly int m_refID;
 
         public WDC5Row(BaseReader reader, BitReader data, int id, int refID, int recordIndex)
@@ -37,9 +37,9 @@ namespace DBFileReaderLib.Readers
             m_dataPosition = m_data.Position;
 
             m_fieldMeta = reader.Meta;
-            m_columnMeta = reader.ColumnMeta;
-            m_palletData = reader.PalletData;
-            m_commonData = reader.CommonData;
+            ColumnMeta = reader.ColumnMeta;
+            PalletData = reader.PalletData;
+            CommonData = reader.CommonData;
             m_refID = refID;
 
             Id = id;
@@ -100,7 +100,7 @@ namespace DBFileReaderLib.Readers
                     if (Id != -1)
                         indexFieldOffSet++;
                     else
-                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], m_columnMeta[i], m_palletData[i], m_commonData[i]);
+                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], ColumnMeta[i], PalletData[i], CommonData[i]);
 
                     info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
@@ -118,14 +118,14 @@ namespace DBFileReaderLib.Readers
                 if (info.IsArray)
                 {
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_recordOffset, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], m_reader.StringTable);
+                        value = reader(m_data, m_recordOffset, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Id, m_data, m_recordOffset, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], m_reader.StringTable, m_reader);
+                        value = reader(Id, m_data, m_recordOffset, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -295,31 +295,31 @@ namespace DBFileReaderLib.Readers
                 this.m_encryptedIDs = new Dictionary<ulong, int[]>();
 
                 // field meta data
-                m_meta = reader.ReadArray<FieldMetaData>(FieldsCount);
+                Meta = reader.ReadArray<FieldMetaData>(FieldsCount);
 
                 // column meta data
-                m_columnMeta = reader.ReadArray<ColumnMetaData>(FieldsCount);
+                ColumnMeta = reader.ReadArray<ColumnMetaData>(FieldsCount);
 
                 // pallet data
-                m_palletData = new Value32[m_columnMeta.Length][];
-                for (int i = 0; i < m_columnMeta.Length; i++)
+                PalletData = new Value32[ColumnMeta.Length][];
+                for (int i = 0; i < ColumnMeta.Length; i++)
                 {
-                    if (m_columnMeta[i].CompressionType == CompressionType.Pallet || m_columnMeta[i].CompressionType == CompressionType.PalletArray)
+                    if (ColumnMeta[i].CompressionType == CompressionType.Pallet || ColumnMeta[i].CompressionType == CompressionType.PalletArray)
                     {
-                        m_palletData[i] = reader.ReadArray<Value32>((int)m_columnMeta[i].AdditionalDataSize / 4);
+                        PalletData[i] = reader.ReadArray<Value32>((int)ColumnMeta[i].AdditionalDataSize / 4);
                     }
                 }
 
                 // common data
-                m_commonData = new Dictionary<int, Value32>[m_columnMeta.Length];
-                for (int i = 0; i < m_columnMeta.Length; i++)
+                CommonData = new Dictionary<int, Value32>[ColumnMeta.Length];
+                for (int i = 0; i < ColumnMeta.Length; i++)
                 {
-                    if (m_columnMeta[i].CompressionType == CompressionType.Common)
+                    if (ColumnMeta[i].CompressionType == CompressionType.Common)
                     {
-                        var commonValues = new Dictionary<int, Value32>((int)m_columnMeta[i].AdditionalDataSize / 8);
-                        m_commonData[i] = commonValues;
+                        var commonValues = new Dictionary<int, Value32>((int)ColumnMeta[i].AdditionalDataSize / 8);
+                        CommonData[i] = commonValues;
 
-                        for (int j = 0; j < m_columnMeta[i].AdditionalDataSize / 8; j++)
+                        for (int j = 0; j < ColumnMeta[i].AdditionalDataSize / 8; j++)
                             commonValues[reader.ReadInt32()] = reader.Read<Value32>();
                     }
                 }
@@ -347,18 +347,18 @@ namespace DBFileReaderLib.Readers
                     if (!Flags.HasFlagExt(DB2Flags.Sparse))
                     {
                         // records data
-                        recordsData = reader.ReadBytes(section.NumRecords * RecordSize);
-
-                        Array.Resize(ref recordsData, recordsData.Length + 8); // pad with extra zeros so we don't crash when reading
+                        byte[] data = reader.ReadBytes(section.NumRecords * RecordSize);
+                        Array.Resize(ref data, data.Length + 8); // pad with extra zeros so we don't crash when reading
+                        RecordsData = data;
 
                         // string data
-                        if (m_stringsTable == null)
-                            m_stringsTable = new Dictionary<long, string>(section.StringTableSize / 0x20);
+                        if (StringTable == null)
+                            StringTable = new Dictionary<long, string>(section.StringTableSize / 0x20);
 
                         for (int i = 0; i < section.StringTableSize;)
                         {
                             long oldPos = reader.BaseStream.Position;
-                            m_stringsTable[i + previousStringTableSize] = reader.ReadCString();
+                            StringTable[i + previousStringTableSize] = reader.ReadCString();
                             i += (int)(reader.BaseStream.Position - oldPos);
                         }
 
@@ -367,33 +367,33 @@ namespace DBFileReaderLib.Readers
                     else
                     {
                         // sparse data with inlined strings
-                        recordsData = reader.ReadBytes(section.OffsetRecordsEndOffset - section.FileOffset);
+                        RecordsData = reader.ReadBytes(section.OffsetRecordsEndOffset - section.FileOffset);
 
                         if (reader.BaseStream.Position != section.OffsetRecordsEndOffset)
                             throw new Exception("reader.BaseStream.Position != section.OffsetRecordsEndOffset");
                     }
 
                     // skip encrypted sections => has tact key + record data is zero filled
-                    if (section.TactKeyLookup != 0 && Array.TrueForAll(recordsData, x => x == 0))
+                    if (section.TactKeyLookup != 0 && Array.TrueForAll(RecordsData, x => x == 0))
                     {
                         bool completelyZero = false;
                         if (section.IndexDataSize > 0 || section.CopyTableCount > 0)
                         {
-                            // this will be the record id from m_indexData or m_copyData
+                            // this will be the record id from IndexData or CopyData
                             // if this is zero then the id for this record will be zero which is invalid
                             completelyZero = reader.ReadInt32() == 0;
                             reader.BaseStream.Position -= 4;
                         }
                         else if (section.OffsetMapIDCount > 0)
                         {
-                            // this will be the first m_sparseEntries entry
+                            // this will be the first SparseEntries entry
                             // confirm it's size is not zero otherwise it is invalid
                             completelyZero = reader.Read<SparseEntry>().Size == 0;
                             reader.BaseStream.Position -= 6;
                         }
                         else
                         {
-                            // there is no additional data and recordsData is already known to be zeroed
+                            // there is no additional data and RecordsData is already known to be zeroed
                             // therefore the record will have an id of zero which is invalid
                             completelyZero = true;
                         }
@@ -405,17 +405,17 @@ namespace DBFileReaderLib.Readers
                         }
                     }
                     // index data
-                    m_indexData = reader.ReadArray<int>(section.IndexDataSize / 4);
+                    IndexData = reader.ReadArray<int>(section.IndexDataSize / 4);
 
                     // fix zero-filled index data
-                    if (m_indexData.Length > 0 && m_indexData.All(x => x == 0))
-                        m_indexData = Enumerable.Range(MinIndex + previousRecordCount, section.NumRecords).ToArray();
+                    if (IndexData.Length > 0 && IndexData.All(x => x == 0))
+                        IndexData = Enumerable.Range(MinIndex + previousRecordCount, section.NumRecords).ToArray();
 
                     // duplicate rows data
                     if (section.CopyTableCount > 0)
                     {
-                        if (m_copyData == null)
-                            m_copyData = new Dictionary<int, int>();
+                        if (CopyData == null)
+                            CopyData = new Dictionary<int, int>();
 
                         for (int i = 0; i < section.CopyTableCount; i++)
                         {
@@ -423,7 +423,7 @@ namespace DBFileReaderLib.Readers
                             var sourceRowID = reader.ReadInt32();
                             if (destinationRowID != sourceRowID)
                             {
-                                m_copyData[destinationRowID] = sourceRowID;
+                                CopyData[destinationRowID] = sourceRowID;
                             }
                         }
                     }
@@ -434,17 +434,17 @@ namespace DBFileReaderLib.Readers
                         if (TableHash == 145293629)
                             reader.BaseStream.Position += 4 * section.OffsetMapIDCount;
 
-                        m_sparseEntries = reader.ReadArray<SparseEntry>(section.OffsetMapIDCount).ToList();
+                        SparseEntries = reader.ReadArray<SparseEntry>(section.OffsetMapIDCount).ToList();
                     }
 
                     if (section.OffsetMapIDCount > 0 && Flags.HasFlag(DB2Flags.SecondaryKey))
                     {
                         int[] sparseIndexData = reader.ReadArray<int>(section.OffsetMapIDCount);
 
-                        if (section.IndexDataSize > 0 && m_indexData.Length != sparseIndexData.Length)
-                            throw new Exception("m_indexData.Length != sparseIndexData.Length");
+                        if (section.IndexDataSize > 0 && IndexData.Length != sparseIndexData.Length)
+                            throw new Exception("IndexData.Length != sparseIndexData.Length");
 
-                        m_indexData = sparseIndexData;
+                        IndexData = sparseIndexData;
                     }
 
                     // reference data
@@ -464,21 +464,21 @@ namespace DBFileReaderLib.Readers
                     {
                         int[] sparseIndexData = reader.ReadArray<int>(section.OffsetMapIDCount);
 
-                        if (section.IndexDataSize > 0 && m_indexData.Length != sparseIndexData.Length)
-                            throw new Exception("m_indexData.Length != sparseIndexData.Length");
+                        if (section.IndexDataSize > 0 && IndexData.Length != sparseIndexData.Length)
+                            throw new Exception("IndexData.Length != sparseIndexData.Length");
 
-                        m_indexData = sparseIndexData;
+                        IndexData = sparseIndexData;
                     }
 
                     int position = 0;
                     for (int i = 0; i < section.NumRecords; i++)
                     {
-                        BitReader bitReader = new BitReader(recordsData) { Position = 0 };
+                        BitReader bitReader = new BitReader(RecordsData) { Position = 0 };
 
                         if (Flags.HasFlagExt(DB2Flags.Sparse))
                         {
                             bitReader.Position = position;
-                            position += m_sparseEntries[i].Size * 8;
+                            position += SparseEntries[i].Size * 8;
                         }
                         else
                         {
@@ -488,11 +488,11 @@ namespace DBFileReaderLib.Readers
                         int refId;
 
                         if (Flags.HasFlag(DB2Flags.SecondaryKey))
-                            refData.Entries.TryGetValue(m_indexData[i], out refId);
+                            refData.Entries.TryGetValue(IndexData[i], out refId);
                         else
                             refData.Entries.TryGetValue(i, out refId);
 
-                        IDBRow rec = new WDC4Row(this, bitReader, section.IndexDataSize != 0 ? m_indexData[i] : -1, refId, i + previousRecordCount);
+                        IDBRow rec = new WDC4Row(this, bitReader, section.IndexDataSize != 0 ? IndexData[i] : -1, refId, i + previousRecordCount);
                         _Records.Add(_Records.Count, rec);
                     }
 

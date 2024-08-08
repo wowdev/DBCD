@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace DBCD.IO.Writers
 {
@@ -37,14 +36,14 @@ namespace DBCD.IO.Writers
 
                 if (info.IsArray)
                 {
-                    if (arrayWriters.TryGetValue(info.Field.FieldType, out var writer))
+                    if (arrayWriters.TryGetValue(info.FieldType, out var writer))
                         writer(bitWriter, m_writer, (Array)info.Getter(row));
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
-                    if (simpleWriters.TryGetValue(info.Field.FieldType, out var writer))
+                    if (simpleWriters.TryGetValue(info.FieldType, out var writer))
                         writer(bitWriter, m_writer, info.Getter(row));
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);

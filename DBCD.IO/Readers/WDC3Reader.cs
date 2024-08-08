@@ -21,9 +21,9 @@ namespace DBCD.IO.Readers
         public BitReader Data { get => m_data; set => m_data = value; }
 
         private readonly FieldMetaData[] m_fieldMeta;
-        private readonly ColumnMetaData[] m_columnMeta;
-        private readonly Value32[][] m_palletData;
-        private readonly Dictionary<int, Value32>[] m_commonData;
+        private readonly ColumnMetaData[] ColumnMeta;
+        private readonly Value32[][] PalletData;
+        private readonly Dictionary<int, Value32>[] CommonData;
         private readonly int m_refID;
 
         public WDC3Row(BaseReader reader, BitReader data, int id, int refID, int recordIndex)
@@ -37,9 +37,9 @@ namespace DBCD.IO.Readers
             m_dataPosition = m_data.Position;
 
             m_fieldMeta = reader.Meta;
-            m_columnMeta = reader.ColumnMeta;
-            m_palletData = reader.PalletData;
-            m_commonData = reader.CommonData;
+            ColumnMeta = reader.ColumnMeta;
+            PalletData = reader.PalletData;
+            CommonData = reader.CommonData;
             m_refID = refID;
 
             Id = id;
@@ -100,7 +100,7 @@ namespace DBCD.IO.Readers
                     if (Id != -1)
                         indexFieldOffSet++;
                     else
-                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], m_columnMeta[i], m_palletData[i], m_commonData[i]);
+                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], ColumnMeta[i], PalletData[i], CommonData[i]);
 
                     info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
@@ -118,14 +118,14 @@ namespace DBCD.IO.Readers
                 if (info.IsArray)
                 {
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_recordOffset, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], m_reader.StringTable);
+                        value = reader(m_data, m_recordOffset, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Id, m_data, m_recordOffset, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], m_reader.StringTable, m_reader);
+                        value = reader(Id, m_data, m_recordOffset, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -224,7 +224,7 @@ namespace DBCD.IO.Readers
                     for (int i = 0; i < array.Length; i++)
                     {
                         var index = (r.Position >> 3) + recordOffset + r.ReadValue64(bitSize).GetValue<int>();
-                        if(stringTable.TryGetValue(index, out string result))
+                        if (stringTable.TryGetValue(index, out string result))
                         {
                             array[i] = result;
                         }
@@ -255,7 +255,7 @@ namespace DBCD.IO.Readers
 
         public WDC3Reader(Stream stream)
         {
-            using (var reader = new BinaryReader(stream))
+            using (var reader = new BinaryReader(stream, Encoding.UTF8))
             {
                 if (reader.BaseStream.Length < HeaderSize)
                     throw new InvalidDataException("WDC3 file is corrupted!");
@@ -273,11 +273,11 @@ namespace DBCD.IO.Readers
                 LayoutHash = reader.ReadUInt32();
                 MinIndex = reader.ReadInt32();
                 MaxIndex = reader.ReadInt32();
-                Locale = reader.ReadInt32();
+                int locale = reader.ReadInt32();
                 Flags = (DB2Flags)reader.ReadUInt16();
                 IdFieldIndex = reader.ReadUInt16();
                 int totalFieldsCount = reader.ReadInt32();
-                PackedDataOffset = reader.ReadInt32(); // Offset within the field where packed data starts
+                int packedDataOffset = reader.ReadInt32(); // Offset within the field where packed data starts
                 int lookupColumnCount = reader.ReadInt32(); // count of lookup columns
                 int columnMetaDataSize = reader.ReadInt32(); // 24 * NumFields bytes, describes column bit packing, {ushort recordOffset, ushort size, uint additionalDataSize, uint compressionType, uint packedDataOffset or commonvalue, uint cellSize, uint cardinality}[NumFields], sizeof(DBC2CommonValue) == 8
                 int commonDataSize = reader.ReadInt32();
@@ -328,13 +328,13 @@ namespace DBCD.IO.Readers
                     if (!Flags.HasFlagExt(DB2Flags.Sparse))
                     {
                         // records data
-                        recordsData = reader.ReadBytes(section.NumRecords * RecordSize);
-
-                        Array.Resize(ref recordsData, recordsData.Length + 8); // pad with extra zeros so we don't crash when reading
+                        byte[] data = reader.ReadBytes(section.NumRecords * RecordSize);
+                        Array.Resize(ref data, data.Length + 8); // pad with extra zeros so we don't crash when reading
+                        RecordsData = data;
 
                         // string data
-                        if (m_stringsTable == null)
-                            m_stringsTable = new Dictionary<long, string>(section.StringTableSize / 0x20);
+                        if (StringTable == null)
+                            StringTable = new Dictionary<long, string>(section.StringTableSize / 0x20);
 
                         for (int i = 0; i < section.StringTableSize;)
                         {
@@ -348,33 +348,33 @@ namespace DBCD.IO.Readers
                     else
                     {
                         // sparse data with inlined strings
-                        recordsData = reader.ReadBytes(section.OffsetRecordsEndOffset - section.FileOffset);
+                        RecordsData = reader.ReadBytes(section.OffsetRecordsEndOffset - section.FileOffset);
 
                         if (reader.BaseStream.Position != section.OffsetRecordsEndOffset)
                             throw new Exception("reader.BaseStream.Position != section.OffsetRecordsEndOffset");
                     }
 
                     // skip encrypted sections => has tact key + record data is zero filled
-                    if (section.TactKeyLookup != 0 && Array.TrueForAll(recordsData, x => x == 0))
+                    if (section.TactKeyLookup != 0 && Array.TrueForAll(RecordsData, x => x == 0))
                     {
                         bool completelyZero = false;
                         if (section.IndexDataSize > 0 || section.CopyTableCount > 0)
                         {
-                            // this will be the record id from m_indexData or m_copyData
+                            // this will be the record id from IndexData or CopyData
                             // if this is zero then the id for this record will be zero which is invalid
                             completelyZero = reader.ReadInt32() == 0;
                             reader.BaseStream.Position -= 4;
                         }
                         else if (section.OffsetMapIDCount > 0)
                         {
-                            // this will be the first m_sparseEntries entry
+                            // this will be the first SparseEntries entry
                             // confirm it's size is not zero otherwise it is invalid
                             completelyZero = reader.Read<SparseEntry>().Size == 0;
                             reader.BaseStream.Position -= 6;
                         }
                         else
                         {
-                            // there is no additional data and recordsData is already known to be zeroed
+                            // there is no additional data and RecordsData is already known to be zeroed
                             // therefore the record will have an id of zero which is invalid
                             completelyZero = true;
                         }
@@ -386,11 +386,11 @@ namespace DBCD.IO.Readers
                         }
                     }
                     // index data
-                    m_indexData = reader.ReadArray<int>(section.IndexDataSize / 4);
+                    IndexData = reader.ReadArray<int>(section.IndexDataSize / 4);
 
                     // fix zero-filled index data
-                    if (m_indexData.Length > 0 && m_indexData.All(x => x == 0))
-                        m_indexData = Enumerable.Range(MinIndex + previousRecordCount, section.NumRecords).ToArray();
+                    if (IndexData.Length > 0 && IndexData.All(x => x == 0))
+                        IndexData = Enumerable.Range(MinIndex + previousRecordCount, section.NumRecords).ToArray();
 
                     // duplicate rows data
                     if (section.CopyTableCount > 0)
@@ -402,9 +402,9 @@ namespace DBCD.IO.Readers
                         {
                             var destinationRowID = reader.ReadInt32();
                             var sourceRowID = reader.ReadInt32();
-                            if(destinationRowID != sourceRowID)
+                            if (destinationRowID != sourceRowID)
                             {
-                                m_copyData[destinationRowID] = sourceRowID;
+                                CopyData[destinationRowID] = sourceRowID;
                             }
                         }
                     }
@@ -415,7 +415,7 @@ namespace DBCD.IO.Readers
                         if (TableHash == 145293629)
                             reader.BaseStream.Position += 4 * section.OffsetMapIDCount;
 
-                        m_sparseEntries = reader.ReadArray<SparseEntry>(section.OffsetMapIDCount).ToList();
+                        SparseEntries = reader.ReadArray<SparseEntry>(section.OffsetMapIDCount).ToList();
                     }
 
                     // reference data
@@ -435,8 +435,8 @@ namespace DBCD.IO.Readers
                     {
                         int[] sparseIndexData = reader.ReadArray<int>(section.OffsetMapIDCount);
 
-                        if (section.IndexDataSize > 0 && m_indexData.Length != sparseIndexData.Length)
-                            throw new Exception("m_indexData.Length != sparseIndexData.Length");
+                        if (section.IndexDataSize > 0 && IndexData.Length != sparseIndexData.Length)
+                            throw new Exception("IndexData.Length != sparseIndexData.Length");
 
                         IndexData = sparseIndexData;
                     }
@@ -458,7 +458,7 @@ namespace DBCD.IO.Readers
 
                         refData.Entries.TryGetValue(i, out int refId);
 
-                        IDBRow rec = new WDC3Row(this, bitReader, section.IndexDataSize != 0 ? m_indexData[i] : -1, refId, i + previousRecordCount);
+                        IDBRow rec = new WDC3Row(this, bitReader, section.IndexDataSize != 0 ? IndexData[i] : -1, refId, i + previousRecordCount);
                         _Records.Add(_Records.Count, rec);
                     }
 

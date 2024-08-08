@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace DBCD.IO.Writers
 {
@@ -41,7 +40,7 @@ namespace DBCD.IO.Writers
 
                 if (info.IsArray)
                 {
-                    if (arrayWriters.TryGetValue(info.Field.FieldType, out var writer))
+                    if (arrayWriters.TryGetValue(info.FieldType, out var writer))
                     {
                         Array array = (Array)info.Getter(row);
                         writer(bitWriter, m_writer, array);
@@ -54,7 +53,7 @@ namespace DBCD.IO.Writers
                 }
                 else
                 {
-                    if (simpleWriters.TryGetValue(info.Field.FieldType, out var writer))
+                    if (simpleWriters.TryGetValue(info.FieldType, out var writer))
                     {
                         object value = info.Getter(row);
                         writer(bitWriter, m_writer, value);

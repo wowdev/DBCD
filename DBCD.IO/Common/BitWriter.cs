@@ -1,65 +1,70 @@
 ﻿using System;
+using System.Buffers;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DBCD.IO.Common
 {
-    class BitWriter : IEquatable<BitWriter>
+    class BitWriter : IEquatable<BitWriter>, IDisposable
     {
+        private static readonly ArrayPool<byte> SharedPool = ArrayPool<byte>.Create();
+
         public int TotalBytesWrittenOut { get; private set; }
 
-        private byte nAccumulatedBits;
-        private byte[] buffer;
+        private byte AccumulatedBitsCount;
+        private byte[] Buffer;
 
-        private readonly byte[] _pool;
+        public BitWriter(int capacity) => Buffer = SharedPool.Rent(capacity);
 
-        public BitWriter(int capacity)
-        {
-            buffer = new byte[capacity];
-            _pool = new byte[0x10];
-        }
+        public byte this[int i] => Buffer[i];
 
-        public byte this[int i] => buffer[i];
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteAligned<T>(T value) where T : struct
         {
             EnsureSize();
-            Unsafe.WriteUnaligned(ref buffer[TotalBytesWrittenOut], value);
+            Unsafe.WriteUnaligned(ref Buffer[TotalBytesWrittenOut], value);
             TotalBytesWrittenOut += Unsafe.SizeOf<T>();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteCStringAligned(string value)
         {
             byte[] data = Encoding.UTF8.GetBytes(value);
+            Array.Resize(ref data, data.Length + 1);
 
-            Resize(data.Length);
-            Array.Copy(data, 0, buffer, TotalBytesWrittenOut, data.Length);
-            TotalBytesWrittenOut += data.Length + 1;
+            EnsureSize(data.Length);
+            Unsafe.CopyBlockUnaligned(ref Buffer[TotalBytesWrittenOut], ref data[0], (uint)data.Length);
+
+            TotalBytesWrittenOut += data.Length;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write<T>(T value, int nbits) where T : struct
         {
-            if (nAccumulatedBits == 0 && (nbits & 7) == 0)
+            Span<byte> pool = stackalloc byte[0x10];
+            if (AccumulatedBitsCount == 0 && (nbits & 7) == 0)
             {
                 EnsureSize();
-                Unsafe.WriteUnaligned(ref buffer[TotalBytesWrittenOut], value);
+                Unsafe.WriteUnaligned(ref Buffer[TotalBytesWrittenOut], value);
                 TotalBytesWrittenOut += nbits / 8;
             }
             else
             {
-                Unsafe.WriteUnaligned(ref _pool[0], value);
+                Unsafe.WriteUnaligned(ref pool[0], value);
                 for (int i = 0; nbits > 0; i++)
                 {
-                    WriteBits(Math.Min(nbits, 8), _pool[i]);
+                    WriteBits(Math.Min(nbits, 8), pool[i]);
                     nbits -= 8;
                 }
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write<T>(T value, int nbits, int offset) where T : struct
         {
-            Unsafe.WriteUnaligned(ref _pool[0], value);
+            Span<byte> pool = stackalloc byte[0x10];
+            Unsafe.WriteUnaligned(ref pool[0], value);
 
             int byteOffset = offset >> 3;
             int lowLen = offset & 7;
@@ -69,11 +74,11 @@ namespace DBCD.IO.Common
             while ((nbits -= 8) >= 0)
             {
                 // write last part of this byte
-                buffer[byteOffset] = (byte)((buffer[byteOffset] & (0xFF >> highLen)) | (_pool[i] << lowLen));
+                Buffer[byteOffset] = (byte)((Buffer[byteOffset] & (0xFF >> highLen)) | (pool[i] << lowLen));
 
                 // write first part of next byte
                 byteOffset++;
-                buffer[byteOffset] = (byte)((buffer[byteOffset] & (0xFF << lowLen)) | (_pool[i] >> highLen));
+                Buffer[byteOffset] = (byte)((Buffer[byteOffset] & (0xFF << lowLen)) | (pool[i] >> highLen));
                 i++;
             }
 
@@ -83,14 +88,15 @@ namespace DBCD.IO.Common
                 lowLen = nbits;
                 highLen = 8 - nbits;
 
-                buffer[byteOffset] = (byte)((buffer[byteOffset] & (0xFF >> highLen)) | (_pool[i] << lowLen));
+                Buffer[byteOffset] = (byte)((Buffer[byteOffset] & (0xFF >> highLen)) | (pool[i] << lowLen));
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteCString(string value)
         {
             // Note: cstrings are always aligned to 8 bytes
-            if (nAccumulatedBits == 0)
+            if (AccumulatedBitsCount == 0)
             {
                 WriteCStringAligned(value);
             }
@@ -104,30 +110,38 @@ namespace DBCD.IO.Common
             }
         }
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void WriteBits(int bitCount, uint value)
         {
             EnsureSize();
 
             for (int i = 0; i < bitCount; i++)
             {
-                buffer[TotalBytesWrittenOut] |= (byte)(((value >> i) & 0x1) << nAccumulatedBits);
-                nAccumulatedBits++;
+                Buffer[TotalBytesWrittenOut] |= (byte)(((value >> i) & 0x1) << AccumulatedBitsCount);
+                AccumulatedBitsCount++;
 
-                if (nAccumulatedBits > 7)
+                if (AccumulatedBitsCount > 7)
                 {
                     TotalBytesWrittenOut++;
-                    nAccumulatedBits = 0;
+                    AccumulatedBitsCount = 0;
                 }
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnsureSize(int size = 8)
         {
-            if (TotalBytesWrittenOut + size >= buffer.Length)
-                Array.Resize(ref buffer, buffer.Length + size + 0x10);
-        }
+            if (TotalBytesWrittenOut + size >= Buffer.Length)
+            {
+                byte[] rent = SharedPool.Rent(Buffer.Length + size);
 
+                Unsafe.CopyBlockUnaligned(ref rent[0], ref Buffer[0], (uint)rent.Length);
+
+                SharedPool.Return(Buffer, true);
+
+                Buffer = rent;
+            }
+        }
 
         public void Resize(int size)
         {
@@ -150,9 +164,8 @@ namespace DBCD.IO.Common
 
         public void CopyTo(Stream stream)
         {
-            stream.Write(buffer, 0, TotalBytesWrittenOut);
+            stream.Write(Buffer, 0, TotalBytesWrittenOut);
         }
-
 
         public bool Equals(BitWriter other)
         {
@@ -172,20 +185,21 @@ namespace DBCD.IO.Common
         {
             unchecked
             {
-                // jenkins one-at-a-time
-                int hashcode = 0;
-                for (int i = 0; i < TotalBytesWrittenOut; i++)
-                {
-                    hashcode += buffer[i];
-                    hashcode += hashcode << 10;
-                    hashcode ^= hashcode >> 6;
-                }
+                const int p = 16777619;
+                int hash = (int)2166136261;
 
-                hashcode += hashcode << 3;
-                hashcode ^= hashcode >> 11;
-                hashcode += hashcode << 15;
-                return hashcode;
+                for (int i = 0; i < TotalBytesWrittenOut; i++)
+                    hash = (hash ^ Buffer[i]) * p;
+
+                hash += hash << 13;
+                hash ^= hash >> 7;
+                hash += hash << 3;
+                hash ^= hash >> 17;
+                hash += hash << 5;
+                return hash;
             }
         }
+
+        public void Dispose() => SharedPool.Return(Buffer);
     }
 }

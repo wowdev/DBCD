@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace DBCD.IO.Writers
 {
@@ -15,20 +14,17 @@ namespace DBCD.IO.Writers
 
         private readonly BaseWriter<T> m_writer;
         private readonly FieldMetaData[] m_fieldMeta;
-        private readonly ColumnMetaData[] m_columnMeta;
-        private readonly List<Value32[]>[] m_palletData;
-        private readonly Dictionary<int, Value32>[] m_commonData;
-
-        private static readonly Value32Comparer Value32Comparer = new Value32Comparer();
-
+        private readonly ColumnMetaData[] ColumnMeta;
+        private readonly OrderedHashSet<Value32[]>[] PalletData;
+        private readonly Dictionary<int, Value32>[] CommonData;
 
         public WDC3RowSerializer(BaseWriter<T> writer)
         {
             m_writer = writer;
             m_fieldMeta = m_writer.Meta;
-            m_columnMeta = m_writer.ColumnMeta;
-            m_palletData = m_writer.PalletData;
-            m_commonData = m_writer.CommonData;
+            ColumnMeta = m_writer.ColumnMeta;
+            PalletData = m_writer.PalletData;
+            CommonData = m_writer.CommonData;
 
             Records = new Dictionary<int, BitWriter>();
         }
@@ -63,17 +59,21 @@ namespace DBCD.IO.Writers
                     continue;
                 }
 
+                // relationship field, used for faster lookup on IDs
+                if (info.IsRelation)
+                    m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+
                 if (info.IsArray)
                 {
-                    if (arrayWriters.TryGetValue(info.Field.FieldType, out var writer))
-                        writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], (Array)info.Getter(row));
+                    if (arrayWriters.TryGetValue(info.FieldType, out var writer))
+                        writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], (Array)info.Getter(row));
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
-                    if (simpleWriters.TryGetValue(info.Field.FieldType, out var writer))
-                        writer(id, bitWriter, m_writer, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], info.Getter(row));
+                    if (simpleWriters.TryGetValue(info.FieldType, out var writer))
+                        writer(id, bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], info.Getter(row));
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -90,7 +90,7 @@ namespace DBCD.IO.Writers
 
         public void GetCopyRows()
         {
-            var copydata = Records.GroupBy(x => x.Value).Where(x => x.Count() > 1).ToArray();
+            var copydata = Records.GroupBy(x => x.Value).Where(x => x.Count() > 1);
             foreach (var copygroup in copydata)
             {
                 int key = copygroup.First().Key;
@@ -121,7 +121,6 @@ namespace DBCD.IO.Writers
 
             int recordOffset = (Records.Count - m_writer.CopyData.Count) * m_writer.RecordSize;
             int fieldOffset = 0;
-
             foreach (var record in Records)
             {
                 // skip copy records
@@ -133,7 +132,7 @@ namespace DBCD.IO.Writers
                     int index = fieldInfo.Key;
                     var info = fieldInfo.Value;
 
-                    var columnMeta = m_columnMeta[index];
+                    var columnMeta = ColumnMeta[index];
                     if (columnMeta.CompressionType != CompressionType.None)
                         throw new Exception("CompressionType != CompressionType.None");
 
@@ -146,7 +145,7 @@ namespace DBCD.IO.Writers
                         var array = (string[])info.Getter(rows[record.Key]);
                         for (int i = 0; i < array.Length; i++)
                         {
-                            fieldOffset = m_writer.StringTable[array[i]] + recordOffset - (columnMeta.RecordOffset / 8 * i);
+                            fieldOffset = m_writer.StringTable[array[i]] + (recordOffset) - (sizeof(int) * i) - (columnMeta.RecordOffset / 8);
                             record.Value.Write(fieldOffset, bitSize, columnMeta.RecordOffset + (i * bitSize));
                         }
                     }
@@ -162,8 +161,9 @@ namespace DBCD.IO.Writers
         }
 
 
-        private static Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, object>> simpleWriters = new Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, object>>
+        private static Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, OrderedHashSet<Value32[]>, Dictionary<int, Value32>, object>> simpleWriters = new Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, OrderedHashSet<Value32[]>, Dictionary<int, Value32>, object>>
         {
+            [typeof(ulong)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<ulong>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
             [typeof(long)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<long>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
             [typeof(float)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<float>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
             [typeof(int)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
@@ -181,7 +181,7 @@ namespace DBCD.IO.Writers
             }
         };
 
-        private static Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, Array>> arrayWriters = new Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, Array>>
+        private static Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, OrderedHashSet<Value32[]>, Dictionary<int, Value32>, Array>> arrayWriters = new Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, OrderedHashSet<Value32[]>, Dictionary<int, Value32>, Array>>
         {
             [typeof(ulong[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<ulong>(data, fieldMeta, columnMeta, palletData, commonData, array),
             [typeof(long[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<long>(data, fieldMeta, columnMeta, palletData, commonData, array),
@@ -196,7 +196,7 @@ namespace DBCD.IO.Writers
             [typeof(string[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<int>(data, fieldMeta, columnMeta, palletData, commonData, (array as string[]).Select(x => writer.InternString(x)).ToArray()),
         };
 
-        private static void WriteFieldValue<TType>(int Id, BitWriter r, FieldMetaData fieldMeta, ColumnMetaData columnMeta, List<Value32[]> palletData, Dictionary<int, Value32> commonData, object value) where TType : unmanaged
+        private static void WriteFieldValue<TType>(int Id, BitWriter r, FieldMetaData fieldMeta, ColumnMetaData columnMeta, OrderedHashSet<Value32[]> palletData, Dictionary<int, Value32> commonData, object value) where TType : unmanaged
         {
             switch (columnMeta.CompressionType)
             {
@@ -223,9 +223,8 @@ namespace DBCD.IO.Writers
                     }
                 case CompressionType.Pallet:
                     {
-                        Value32[] array = new[] { Value32.Create((TType)value) };
-
-                        int palletIndex = palletData.FindIndex(x => Value32Comparer.Equals(array, x));
+                        Value32[] array = new[] { Value32.Create(value) };
+                        int palletIndex = palletData.IndexOf(array);
                         if (palletIndex == -1)
                         {
                             palletIndex = palletData.Count;
@@ -238,7 +237,7 @@ namespace DBCD.IO.Writers
             }
         }
 
-        private static void WriteFieldValueArray<TType>(BitWriter r, FieldMetaData fieldMeta, ColumnMetaData columnMeta, List<Value32[]> palletData, Dictionary<int, Value32> commonData, Array value) where TType : unmanaged
+        private static void WriteFieldValueArray<TType>(BitWriter r, FieldMetaData fieldMeta, ColumnMetaData columnMeta, OrderedHashSet<Value32[]> palletData, Dictionary<int, Value32> commonData, Array value) where TType : unmanaged
         {
             switch (columnMeta.CompressionType)
             {
@@ -258,9 +257,9 @@ namespace DBCD.IO.Writers
                         // get data
                         Value32[] array = new Value32[value.Length];
                         for (int i = 0; i < value.Length; i++)
-                            array[i] = Value32.Create((TType)value.GetValue(i));
+                            array[i] = Value32.Create(value.GetValue(i));
 
-                        int palletIndex = palletData.FindIndex(x => Value32Comparer.Equals(array, x));
+                        int palletIndex = palletData.IndexOf(array);
                         if (palletIndex == -1)
                         {
                             palletIndex = palletData.Count;
@@ -284,9 +283,16 @@ namespace DBCD.IO.Writers
             // always 2 empties
             StringTableSize++;
 
+            PackedDataOffset = reader.PackedDataOffset;
+            HandleCompression(storage);
+
             WDC3RowSerializer<T> serializer = new WDC3RowSerializer<T>(this);
             serializer.Serialize(storage);
-            serializer.GetCopyRows();
+
+            // We write the copy rows if and only if it saves space and the table hasn't any reference rows.
+            if ((RecordSize) >= sizeof(int) * 2 && ReferenceData.Count == 0)
+                serializer.GetCopyRows();
+
             serializer.UpdateStringOffsets(storage);
 
             RecordsCount = serializer.Records.Count - CopyData.Count;
@@ -295,14 +301,14 @@ namespace DBCD.IO.Writers
 
             using (var writer = new BinaryWriter(stream))
             {
-                int minIndex = storage.Keys.Min();
-                int maxIndex = storage.Keys.Max();
+                int minIndex = storage.Keys.MinOrDefault();
+                int maxIndex = storage.Keys.MaxOrDefault();
 
                 writer.Write(WDC3FmtSig);
                 writer.Write(RecordsCount);
                 writer.Write(FieldsCount);
                 writer.Write(RecordSize);
-                writer.Write(StringTableSize);
+                writer.Write(storage.Count != 0 ? StringTableSize : 0);
                 writer.Write(reader.TableHash);
                 writer.Write(reader.LayoutHash);
                 writer.Write(minIndex);
@@ -311,29 +317,33 @@ namespace DBCD.IO.Writers
                 writer.Write((ushort)Flags);
                 writer.Write((ushort)IdFieldIndex);
 
-                writer.Write(FieldsCount); // totalFieldCount
-                writer.Write(reader.PackedDataOffset);
-                writer.Write(ReferenceData.Count > 0 ? 1 : 0); // RelationshipColumnCount
-                writer.Write(ColumnMeta.Length * 24); // ColumnMetaDataSize
-                writer.Write(commonDataSize);
-                writer.Write(palletDataSize);
-                writer.Write(1); // sections count
+                writer.Write(FieldsCount);                                                  // totalFieldCount
+                writer.Write(storage.Count != 0 ? PackedDataOffset : 0);
+                writer.Write(storage.Count != 0 ? (ReferenceData.Count > 0 ? 1 : 0) : 0);   // RelationshipColumnCount
+                writer.Write(storage.Count != 0 ? ColumnMeta.Length * 24 : 0);              // ColumnMetaDataSize
+                writer.Write(storage.Count != 0 ? commonDataSize : 0);
+                writer.Write(storage.Count != 0 ? palletDataSize : 0);
+                writer.Write(storage.Count != 0 ? 1 : 0);                                   // sections count
 
                 if (storage.Count == 0)
+                {
+                    // only need to write field structure if empty
+                    writer.WriteArray(Meta);
                     return;
+                }
 
                 // section header
                 int fileOffset = HeaderSize + (Meta.Length * 4) + (ColumnMeta.Length * 24) + Unsafe.SizeOf<SectionHeaderWDC3>() + palletDataSize + commonDataSize;
 
-                writer.Write(0UL); // TactKeyLookup
-                writer.Write(fileOffset); // FileOffset
-                writer.Write(RecordsCount); // NumRecords
+                writer.Write(0UL);                              // TactKeyLookup
+                writer.Write(fileOffset);                       // FileOffset
+                writer.Write(RecordsCount);                     // NumRecords
                 writer.Write(StringTableSize);
-                writer.Write(0); // OffsetRecordsEndOffset
-                writer.Write(RecordsCount * 4); // IndexDataSize
-                writer.Write(referenceDataSize); // ParentLookupDataSize
+                writer.Write(0);                                // OffsetRecordsEndOffset
+                writer.Write(Flags.HasFlagExt(DB2Flags.Index) ? RecordsCount * 4 : 0);  // IndexDataSize
+                writer.Write(referenceDataSize);                // ParentLookupDataSize
                 writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? RecordsCount : 0); // OffsetMapIDCount
-                writer.Write(CopyData.Count); // CopyTableCount
+                writer.Write(CopyData.Count);                   // CopyTableCount
 
                 // field meta
                 writer.WriteArray(Meta);
@@ -365,12 +375,12 @@ namespace DBCD.IO.Writers
                 }
 
                 // record data
-                var m_sparseEntries = new Dictionary<int, SparseEntry>(storage.Count);
+                var SparseEntries = new Dictionary<int, SparseEntry>(storage.Count);
                 foreach (var record in serializer.Records)
                 {
                     if (!CopyData.TryGetValue(record.Key, out int parent))
                     {
-                        m_sparseEntries.Add(record.Key, new SparseEntry()
+                        SparseEntries.Add(record.Key, new SparseEntry()
                         {
                             Offset = (uint)writer.BaseStream.Position,
                             Size = (ushort)record.Value.TotalBytesWrittenOut
@@ -401,8 +411,8 @@ namespace DBCD.IO.Writers
                 if (Flags.HasFlagExt(DB2Flags.Index))
                     writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
 
-                // copy table
-                foreach (var copyRecord in CopyData)
+                // copy table (must be ordered by value)
+                foreach (var copyRecord in CopyData.OrderBy(r => r.Value))
                 {
                     writer.Write(copyRecord.Key);
                     writer.Write(copyRecord.Value);
@@ -410,7 +420,7 @@ namespace DBCD.IO.Writers
 
                 // sparse data
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
-                    writer.WriteArray(m_sparseEntries.Values.ToArray());
+                    writer.WriteArray(SparseEntries.Values.ToArray());
 
                 // reference data
                 if (ReferenceData.Count > 0)
@@ -426,9 +436,9 @@ namespace DBCD.IO.Writers
                     }
                 }
 
-                // sparse data idss
+                // sparse data ids
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
-                    writer.WriteArray(m_sparseEntries.Keys.ToArray());
+                    writer.WriteArray(SparseEntries.Keys.ToArray());
             }
         }
 

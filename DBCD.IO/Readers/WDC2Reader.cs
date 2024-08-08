@@ -21,9 +21,9 @@ namespace DBCD.IO.Readers
         public BitReader Data { get => m_data; set => m_data = value; }
 
         private readonly FieldMetaData[] m_fieldMeta;
-        private readonly ColumnMetaData[] m_columnMeta;
-        private readonly Value32[][] m_palletData;
-        private readonly Dictionary<int, Value32>[] m_commonData;
+        private readonly ColumnMetaData[] ColumnMeta;
+        private readonly Value32[][] PalletData;
+        private readonly Dictionary<int, Value32>[] CommonData;
         private readonly int m_refID;
 
         public WDC2Row(BaseReader reader, BitReader data, int recordsOffset, int id, int refID, int recordIndex)
@@ -37,9 +37,9 @@ namespace DBCD.IO.Readers
             m_dataPosition = m_data.Position;
 
             m_fieldMeta = reader.Meta;
-            m_columnMeta = reader.ColumnMeta;
-            m_palletData = reader.PalletData;
-            m_commonData = reader.CommonData;
+            ColumnMeta = reader.ColumnMeta;
+            PalletData = reader.PalletData;
+            CommonData = reader.CommonData;
             m_refID = refID;
 
             Id = id;
@@ -95,11 +95,11 @@ namespace DBCD.IO.Readers
                     {
                         if (!m_reader.Flags.HasFlagExt(DB2Flags.Sparse))
                         {
-                            m_data.Position = m_columnMeta[i].RecordOffset;
+                            m_data.Position = ColumnMeta[i].RecordOffset;
                             m_data.Offset = m_dataOffset;
                         }
 
-                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], m_columnMeta[i], m_palletData[i], m_commonData[i]);
+                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], ColumnMeta[i], PalletData[i], CommonData[i]);
                     }
 
                     info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
@@ -117,21 +117,21 @@ namespace DBCD.IO.Readers
 
                 if (!m_reader.Flags.HasFlagExt(DB2Flags.Sparse))
                 {
-                    m_data.Position = m_columnMeta[fieldIndex].RecordOffset;
+                    m_data.Position = ColumnMeta[fieldIndex].RecordOffset;
                     m_data.Offset = m_dataOffset;
                 }
 
                 if (info.IsArray)
                 {
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_recordsOffset, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], m_reader.StringTable);
+                        value = reader(m_data, m_recordsOffset, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Id, m_data, m_recordsOffset, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], m_reader.StringTable, m_reader);
+                        value = reader(Id, m_data, m_recordsOffset, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -257,7 +257,7 @@ namespace DBCD.IO.Readers
 
         public WDC2Reader(Stream stream)
         {
-            using (var reader = new BinaryReader(stream))
+            using (var reader = new BinaryReader(stream, Encoding.UTF8))
             {
                 if (reader.BaseStream.Length < HeaderSize)
                     throw new InvalidDataException("WDC2 file is corrupted!");
@@ -421,7 +421,7 @@ namespace DBCD.IO.Readers
 
                         refData.Entries.TryGetValue(i, out int refId);
 
-                        IDBRow rec = new WDC2Row(this, bitReader, sections[sectionIndex].FileOffset, sections[sectionIndex].IndexDataSize != 0 ? m_indexData[i] : -1, refId, i);
+                        IDBRow rec = new WDC2Row(this, bitReader, sections[sectionIndex].FileOffset, sections[sectionIndex].IndexDataSize != 0 ? IndexData[i] : -1, refId, i);
                         _Records.Add(i, rec);
                     }
                 }

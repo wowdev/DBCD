@@ -20,9 +20,9 @@ namespace DBCD.IO.Readers
         public BitReader Data { get => m_data; set => m_data = value; }
 
         private readonly FieldMetaData[] m_fieldMeta;
-        private readonly ColumnMetaData[] m_columnMeta;
-        private readonly Value32[][] m_palletData;
-        private readonly Dictionary<int, Value32>[] m_commonData;
+        private readonly ColumnMetaData[] ColumnMeta;
+        private readonly Value32[][] PalletData;
+        private readonly Dictionary<int, Value32>[] CommonData;
         private readonly int m_refID;
 
         public WDC1Row(BaseReader reader, BitReader data, int id, int refID, int recordIndex)
@@ -35,9 +35,9 @@ namespace DBCD.IO.Readers
             m_dataPosition = m_data.Position;
 
             m_fieldMeta = reader.Meta;
-            m_columnMeta = reader.ColumnMeta;
-            m_palletData = reader.PalletData;
-            m_commonData = reader.CommonData;
+            ColumnMeta = reader.ColumnMeta;
+            PalletData = reader.PalletData;
+            CommonData = reader.CommonData;
             m_refID = refID;
 
             Id = id;
@@ -86,7 +86,7 @@ namespace DBCD.IO.Readers
                     if (Id != -1)
                         indexFieldOffSet++;
                     else
-                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], m_columnMeta[i], m_palletData[i], m_commonData[i]);
+                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], ColumnMeta[i], PalletData[i], CommonData[i]);
 
                     info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
@@ -104,14 +104,14 @@ namespace DBCD.IO.Readers
                 if (info.IsArray)
                 {
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(m_data, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], m_reader.StringTable);
+                        value = reader(m_data, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Id, m_data, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], m_reader.StringTable, m_reader);
+                        value = reader(Id, m_data, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -367,7 +367,7 @@ namespace DBCD.IO.Readers
 
                     refData.Entries.TryGetValue(i, out int refId);
 
-                    IDBRow rec = new WDC1Row(this, bitReader, indexDataSize != 0 ? m_indexData[i] : -1, refId, i);
+                    IDBRow rec = new WDC1Row(this, bitReader, indexDataSize != 0 ? IndexData[i] : -1, refId, i);
                     _Records.Add(i, rec);
                 }
             }

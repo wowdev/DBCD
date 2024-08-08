@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace DBCD.IO.Writers
 {
@@ -15,9 +14,9 @@ namespace DBCD.IO.Writers
 
         private readonly BaseWriter<T> m_writer;
         private readonly FieldMetaData[] m_fieldMeta;
-        private readonly ColumnMetaData[] m_columnMeta;
-        private readonly List<Value32[]>[] m_palletData;
-        private readonly Dictionary<int, Value32>[] m_commonData;
+        private readonly ColumnMetaData[] ColumnMeta;
+        private readonly OrderedHashSet<Value32[]>[] PalletData;
+        private readonly Dictionary<int, Value32>[] CommonData;
 
         private static readonly Value32Comparer Value32Comparer = new Value32Comparer();
 
@@ -26,9 +25,9 @@ namespace DBCD.IO.Writers
         {
             m_writer = writer;
             m_fieldMeta = m_writer.Meta;
-            m_columnMeta = m_writer.ColumnMeta;
-            m_palletData = m_writer.PalletData;
-            m_commonData = m_writer.CommonData;
+            ColumnMeta = m_writer.ColumnMeta;
+            PalletData = m_writer.PalletData;
+            CommonData = m_writer.CommonData;
 
             Records = new Dictionary<int, BitWriter>();
         }
@@ -57,24 +56,21 @@ namespace DBCD.IO.Writers
 
                 int fieldIndex = i - indexFieldOffSet;
 
-                // reference data field
-                if (fieldIndex >= m_writer.Meta.Length)
-                {
+                // relationship field, used for faster lookup on IDs
+                if (info.IsRelation)
                     m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
-                    continue;
-                }
 
                 if (info.IsArray)
                 {
-                    if (arrayWriters.TryGetValue(info.Field.FieldType, out var writer))
-                        writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], (Array)info.Getter(row));
+                    if (arrayWriters.TryGetValue(info.FieldType, out var writer))
+                        writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], (Array)info.Getter(row));
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
-                    if (simpleWriters.TryGetValue(info.Field.FieldType, out var writer))
-                        writer(id, bitWriter, m_writer, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], info.Getter(row));
+                    if (simpleWriters.TryGetValue(info.FieldType, out var writer))
+                        writer(id, bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], info.Getter(row));
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
@@ -134,7 +130,7 @@ namespace DBCD.IO.Writers
                     int index = fieldInfo.Key;
                     var info = fieldInfo.Value;
 
-                    var columnMeta = m_columnMeta[index];
+                    var columnMeta = ColumnMeta[index];
                     if (columnMeta.CompressionType != CompressionType.None)
                         throw new Exception("CompressionType != CompressionType.None");
 
@@ -147,7 +143,7 @@ namespace DBCD.IO.Writers
                         var array = (string[])info.Getter(rows[record.Key]);
                         for (int i = 0; i < array.Length; i++)
                         {
-                            fieldOffset = m_writer.StringTable[array[i]] + recordOffset - (columnMeta.RecordOffset / 8 * i);
+                            fieldOffset = m_writer.StringTable[array[i]] + (recordOffset) - (sizeof(int) * i) - (columnMeta.RecordOffset / 8);
                             record.Value.Write(fieldOffset, bitSize, columnMeta.RecordOffset + (i * bitSize));
                         }
                     }
@@ -163,8 +159,9 @@ namespace DBCD.IO.Writers
         }
 
 
-        private static Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, object>> simpleWriters = new Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, object>>
+        private static Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, OrderedHashSet<Value32[]>, Dictionary<int, Value32>, object>> simpleWriters = new Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, OrderedHashSet<Value32[]>, Dictionary<int, Value32>, object>>
         {
+            [typeof(ulong)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<ulong>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
             [typeof(long)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<long>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
             [typeof(float)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<float>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
             [typeof(int)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
@@ -182,7 +179,7 @@ namespace DBCD.IO.Writers
             }
         };
 
-        private static Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, Array>> arrayWriters = new Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, Array>>
+        private static Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, OrderedHashSet<Value32[]>, Dictionary<int, Value32>, Array>> arrayWriters = new Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, OrderedHashSet<Value32[]>, Dictionary<int, Value32>, Array>>
         {
             [typeof(ulong[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<ulong>(data, fieldMeta, columnMeta, palletData, commonData, array),
             [typeof(long[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<long>(data, fieldMeta, columnMeta, palletData, commonData, array),
@@ -197,7 +194,7 @@ namespace DBCD.IO.Writers
             [typeof(string[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<int>(data, fieldMeta, columnMeta, palletData, commonData, (array as string[]).Select(x => writer.InternString(x)).ToArray()),
         };
 
-        private static void WriteFieldValue<TType>(int Id, BitWriter r, FieldMetaData fieldMeta, ColumnMetaData columnMeta, List<Value32[]> palletData, Dictionary<int, Value32> commonData, object value) where TType : unmanaged
+        private static void WriteFieldValue<TType>(int Id, BitWriter r, FieldMetaData fieldMeta, ColumnMetaData columnMeta, OrderedHashSet<Value32[]> palletData, Dictionary<int, Value32> commonData, object value) where TType : unmanaged
         {
             switch (columnMeta.CompressionType)
             {
@@ -224,9 +221,9 @@ namespace DBCD.IO.Writers
                     }
                 case CompressionType.Pallet:
                     {
-                        Value32[] array = new[] { Value32.Create((TType)value) };
+                        Value32[] array = new[] { Value32.Create(value) };
 
-                        int palletIndex = palletData.FindIndex(x => Value32Comparer.Equals(array, x));
+                        int palletIndex = palletData.IndexOf(array);
                         if (palletIndex == -1)
                         {
                             palletIndex = palletData.Count;
@@ -239,7 +236,7 @@ namespace DBCD.IO.Writers
             }
         }
 
-        private static void WriteFieldValueArray<TType>(BitWriter r, FieldMetaData fieldMeta, ColumnMetaData columnMeta, List<Value32[]> palletData, Dictionary<int, Value32> commonData, Array value) where TType : unmanaged
+        private static void WriteFieldValueArray<TType>(BitWriter r, FieldMetaData fieldMeta, ColumnMetaData columnMeta, OrderedHashSet<Value32[]> palletData, Dictionary<int, Value32> commonData, Array value) where TType : unmanaged
         {
             switch (columnMeta.CompressionType)
             {
@@ -259,9 +256,9 @@ namespace DBCD.IO.Writers
                         // get data
                         Value32[] array = new Value32[value.Length];
                         for (int i = 0; i < value.Length; i++)
-                            array[i] = Value32.Create((TType)value.GetValue(i));
+                            array[i] = Value32.Create(value.GetValue(i));
 
-                        int palletIndex = palletData.FindIndex(x => Value32Comparer.Equals(array, x));
+                        int palletIndex = palletData.IndexOf(array);
                         if (palletIndex == -1)
                         {
                             palletIndex = palletData.Count;
@@ -284,9 +281,16 @@ namespace DBCD.IO.Writers
             // always 2 empties
             StringTableSize++;
 
+            PackedDataOffset = reader.PackedDataOffset;
+            HandleCompression(storage);
+
             WDC2RowSerializer<T> serializer = new WDC2RowSerializer<T>(this);
             serializer.Serialize(storage);
-            serializer.GetCopyRows();
+
+            // We write the copy rows if and only if it saves space and the table hasn't any reference rows.
+            if ((RecordSize) >= sizeof(int) * 2 && ReferenceData.Count == 0)
+                serializer.GetCopyRows();
+
             serializer.UpdateStringOffsets(storage);
 
             RecordsCount = serializer.Records.Count - CopyData.Count;
@@ -295,8 +299,8 @@ namespace DBCD.IO.Writers
 
             using (var writer = new BinaryWriter(stream))
             {
-                int minIndex = storage.Keys.Min();
-                int maxIndex = storage.Keys.Max();
+                int minIndex = storage.Keys.MinOrDefault();
+                int maxIndex = storage.Keys.MaxOrDefault();
                 int copyTableSize = Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : CopyData.Count * 8;
 
                 writer.Write(reader.Signature);
@@ -313,7 +317,7 @@ namespace DBCD.IO.Writers
                 writer.Write((ushort)IdFieldIndex);
 
                 writer.Write(FieldsCount); // totalFieldCount
-                writer.Write(reader.PackedDataOffset);
+                writer.Write(PackedDataOffset);
                 writer.Write(ReferenceData.Count > 0 ? 1 : 0); // RelationshipColumnCount
                 writer.Write(ColumnMeta.Length * 24); // ColumnMetaDataSize
                 writer.Write(commonDataSize);
@@ -332,7 +336,7 @@ namespace DBCD.IO.Writers
                 writer.Write(StringTableSize);
                 writer.Write(copyTableSize);
                 writer.Write(0); // sparseTableOffset
-                writer.Write(RecordsCount * 4); // indexTableSize
+                writer.Write(Flags.HasFlagExt(DB2Flags.Index) ? RecordsCount * 4 : 0);  // IndexDataSize
                 writer.Write(referenceDataSize);
 
                 // field meta
@@ -397,7 +401,7 @@ namespace DBCD.IO.Writers
                 // copy table
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
-                    foreach (var copyRecord in CopyData)
+                    foreach (var copyRecord in CopyData.OrderBy(r => r.Value))
                     {
                         writer.Write(copyRecord.Key);
                         writer.Write(copyRecord.Value);

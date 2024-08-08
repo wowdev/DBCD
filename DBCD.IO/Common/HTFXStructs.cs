@@ -1,5 +1,7 @@
 ﻿#pragma warning disable CS0169
 
+using System.Runtime.InteropServices;
+
 namespace DBCD.IO.Common
 {
     public interface IHotfixEntry

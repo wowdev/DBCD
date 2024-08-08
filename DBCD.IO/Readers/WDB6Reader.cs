@@ -20,7 +20,7 @@ namespace DBCD.IO.Readers
         public BitReader Data { get => m_data; set => m_data = value; }
 
         private readonly FieldMetaData[] m_fieldMeta;
-        private readonly Dictionary<int, Value32>[] m_commonData;
+        private readonly Dictionary<int, Value32>[] CommonData;
 
         public WDB6Row(BaseReader reader, BitReader data, int id, int recordIndex)
         {
@@ -32,7 +32,7 @@ namespace DBCD.IO.Readers
             m_dataPosition = m_data.Position;
 
             m_fieldMeta = reader.Meta;
-            m_commonData = reader.CommonData;
+            CommonData = reader.CommonData;
 
             Id = id;
         }
@@ -80,7 +80,7 @@ namespace DBCD.IO.Readers
                     if (Id != -1)
                         indexFieldOffSet++;
                     else
-                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], m_commonData?[i]);
+                        Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], CommonData?[i]);
 
                     info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
@@ -102,14 +102,14 @@ namespace DBCD.IO.Readers
                         SetCardinality(info, fieldIndex);
 
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Id, m_data, m_fieldMeta[fieldIndex], m_commonData?[fieldIndex], m_reader.StringTable, info.Cardinality);
+                        value = reader(Id, m_data, m_fieldMeta[fieldIndex], CommonData?[fieldIndex], m_reader.StringTable, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
                     if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Id, m_data, m_fieldMeta[fieldIndex], m_commonData?[fieldIndex], m_reader.StringTable, m_reader);
+                        value = reader(Id, m_data, m_fieldMeta[fieldIndex], CommonData?[fieldIndex], m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }

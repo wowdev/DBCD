@@ -6,13 +6,14 @@ namespace DBCD.IO
 {
     class FieldCache<T>
     {
-        private readonly FieldInfo Field;
+        public readonly FieldInfo Field;
         public readonly bool IsArray = false;
         public readonly bool IsLocalisedString = false;
         public readonly Action<T, object> Setter;
         public readonly Func<T, object> Getter;
         public readonly LocaleAttribute LocaleInfo;
 
+        public bool IsForeign { get; set; } = false;
         public bool IsNonInlineRelation { get; set; } = false;
         public bool IsRelation { get; set; } = false;
         public bool IndexMapField { get; set; } = false;
@@ -42,12 +43,15 @@ namespace DBCD.IO
             IsNonInlineRelation = IsRelation && relationAttribute.IsNonInline;
             FieldType = field.FieldType;
             MetaDataFieldType = IsNonInlineRelation ? relationAttribute.FieldType : FieldType;
+
+            ForeignAttribute foreignAttribute = (ForeignAttribute)Attribute.GetCustomAttribute(field, typeof(ForeignAttribute));
+            IsForeign = (foreignAttribute != null) ? foreignAttribute.IsForeign : false;
         }
 
         private int GetCardinality(FieldInfo field)
         {
             var cardinality = field.GetAttribute<CardinalityAttribute>()?.Count;
-            return cardinality > 0 ? cardinality.Value : 1;
+            return cardinality.HasValue && cardinality > 0 ? cardinality.Value : 1;
         }
 
         private bool GetStringInfo(FieldInfo field, out LocaleAttribute attribute)

@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace DBCD.IO.Writers
 {
@@ -57,14 +56,14 @@ namespace DBCD.IO.Writers
 
                 if (info.IsArray)
                 {
-                    if (arrayWriters.TryGetValue(info.Field.FieldType, out var writer))
+                    if (arrayWriters.TryGetValue(info.FieldType, out var writer))
                         writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], (Array)info.Getter(row));
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
-                    if (simpleWriters.TryGetValue(info.Field.FieldType, out var writer))
+                    if (simpleWriters.TryGetValue(info.FieldType, out var writer))
                         writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], info.Getter(row));
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
@@ -158,8 +157,8 @@ namespace DBCD.IO.Writers
 
             using (var writer = new BinaryWriter(stream))
             {
-                int minIndex = storage.Keys.Min();
-                int maxIndex = storage.Keys.Max();
+                int minIndex = storage.Keys.MinOrDefault();
+                int maxIndex = storage.Keys.MaxOrDefault();
                 int copyTableSize = Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : CopyData.Count * 8;
 
                 writer.Write(WDB6FmtSig);
@@ -178,12 +177,12 @@ namespace DBCD.IO.Writers
                 writer.Write(Meta.Length); // totalFieldCount
                 writer.Write(0); // commonDataSize
 
-                if (storage.Count == 0)
-                    return;
-
                 // field meta
                 for (int i = 0; i < FieldsCount; i++)
                     writer.Write(Meta[i]);
+
+                if (storage.Count == 0)
+                    return;
 
                 // record data
                 uint recordsOffset = (uint)writer.BaseStream.Position;

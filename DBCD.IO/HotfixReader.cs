@@ -1,4 +1,5 @@
-﻿using DBCD.IO.Readers;
+﻿using DBCD.IO.Common;
+using DBCD.IO.Readers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -39,10 +40,10 @@ namespace DBCD.IO
         }
 
 
-        public void ApplyHotfixes<T>(IDictionary<int, T> storage, DBParser dbReader) where T : class, new() => ReadHotfixes(storage, dbReader);
+        public void ApplyHotfixes<T>(IDictionary<int, T> storage, DBParser parser) where T : class, new() => ReadHotfixes(storage, parser);
 
-        public void ApplyHotfixes<T>(IDictionary<int, T> storage, DBReader dbReader, RowProcessor processor) where T : class, new() 
-            => ReadHotfixes(storage, dbReader, processor);
+        public void ApplyHotfixes<T>(IDictionary<int, T> storage, DBParser parser, RowProcessor processor) where T : class, new()
+            => ReadHotfixes(storage, parser, processor);
 
         public void CombineCaches(params string[] files)
         {
@@ -51,7 +52,7 @@ namespace DBCD.IO
                 CombineCache(file);
             }
         }
-        
+
         public void CombineCache(string file)
         {
             if (!File.Exists(file))
@@ -66,7 +67,7 @@ namespace DBCD.IO
             _reader.Combine(reader);
         }
 
-        protected virtual void ReadHotfixes<T>(IDictionary<int, T> storage, DBReader dbReader, RowProcessor processor = null) where T : class, new()
+        protected virtual void ReadHotfixes<T>(IDictionary<int, T> storage, DBParser parser, RowProcessor processor = null) where T : class, new()
         {
             var fieldCache = typeof(T).ToFieldCache<T>();
 
@@ -74,18 +75,18 @@ namespace DBCD.IO
                 processor = DefaultProcessor;
 
             // Id fields need to be excluded if not inline
-            if (dbReader.Flags.HasFlagExt(DB2Flags.Index))
-                fieldCache[dbReader.IdFieldIndex].IndexMapField = true;
+            if (parser.Flags.HasFlagExt(DB2Flags.Index))
+                fieldCache[parser.IdFieldIndex].IndexMapField = true;
 
             // TODO verify hotfixes need to be applied sequentially
-            var records = _reader.GetRecords(dbReader.TableHash).OrderBy(x => x.PushId);
+            var records = _reader.GetRecords(parser.TableHash).OrderBy(x => x.PushId);
 
             // Check if there are any valid cached records with data, don't remove row if so. 
             // Example situation: Blizzard has invalidated TACTKey records in the same DBCache as valid ones.
             // Without the below check, valid cached TACTKey records would be removed by the invalidated records afterwards.
             // This only seems to be relevant for cached tables and specifically TACTKey, BroadcastText/ItemSparse only show up single times it seems.
-            var shouldDelete = (dbReader.TableHash != 3744420815 && dbReader.TableHash != 35137211) || !records.Any(r => r.IsValid && r.PushId == -1 && r.DataSize > 0);
-            
+            var shouldDelete = (parser.TableHash != 3744420815 && parser.TableHash != 35137211) || !records.Any(r => r.IsValid && r.PushId == -1 && r.DataSize > 0);
+
             foreach (var row in records)
             {
                 var operation = processor(row, shouldDelete);
@@ -96,7 +97,7 @@ namespace DBCD.IO
                     row.GetFields(fieldCache, entry);
                     storage[row.RecordId] = entry;
                 }
-                else if(operation == RowOp.Delete)
+                else if (operation == RowOp.Delete)
                 {
                     storage.Remove(row.RecordId);
                 }
