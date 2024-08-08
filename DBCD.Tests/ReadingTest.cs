@@ -1,5 +1,8 @@
 ﻿using DBCD.Providers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
+using System.IO;
+using System.Net.Http;
 
 namespace DBCD.Tests
 {
@@ -103,6 +106,44 @@ namespace DBCD.Tests
         public void TestGithubDBDProviderWithCache()
         {
             githubDBDProvider.StreamForTableName("ItemSparse");
+        }
+
+        [TestMethod]
+        public void TestReadingAllDB2s()
+        {
+            return; // Only run this test manually
+
+            var build = "9.1.0.39653"; // WDC3
+
+            var dbcd = new DBCD(wagoDBCProvider, githubDBDProvider);
+            var allDB2s = wagoDBCProvider.GetAllTableNames();
+
+            foreach (var tableName in allDB2s)
+            {
+                // I think this table is meant to crash the test, so we skip it
+                if (tableName == "UnitTestSparse")
+                    continue;
+
+                try
+                {
+                    var storage = dbcd.Load(tableName, build);
+                }
+                catch(FileNotFoundException e)
+                {
+                    Console.WriteLine($"Failed to load {tableName} for build {build}, does not exist in build.");
+                }
+                catch(AggregateException e)
+                {
+                    if(e.InnerException is HttpRequestException)
+                    {
+                        Console.WriteLine($"Failed to load {tableName} for build {build}, does not exist.");
+                    }
+                    else
+                    {
+                        throw e;
+                    }
+                }
+            }
         }
 
         //[TestMethod]
