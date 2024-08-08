@@ -32,6 +32,26 @@ namespace DBCD
         {
             get => fieldAccessor[this.raw, fieldName];
         }
+
+        public object this[string fieldName, int index]
+        {
+            get => ((Array)this[fieldName]).GetValue(index);
+        }
+
+        public T Field<T>(string fieldName)
+        {
+            return (T)fieldAccessor[this.raw, fieldName];
+        }
+
+        public T FieldAs<T>(string fieldName)
+        {
+            return fieldAccessor.GetMemberAs<T>(this.raw, fieldName);
+        }
+
+        public override IEnumerable<string> GetDynamicMemberNames()
+        {
+            return fieldAccessor.FieldNames;
+        }
     }
 
     public class DynamicKeyValuePair<T>
@@ -50,20 +70,22 @@ namespace DBCD
     {
         string[] AvailableColumns { get; }
 
-        /// <summary>
-        /// A readonly representation of the data as IDictionary&lt;int, T&gt;
-        /// </summary>
-        IDictionary BackingCollection { get; }
+        Dictionary<ulong, int> GetEncryptedSections();
+        Dictionary<ulong, int[]> GetEncryptedIDs();
+
+        IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader);
+        IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader, HotfixReader.RowProcessor processor);
     }
 
     public class DBCDStorage<T> : ReadOnlyDictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
     {
-        private readonly string[] availableColumns;
-        private readonly string tableName;
         private readonly FieldAccessor fieldAccessor;
         private readonly ReadOnlyDictionary<int, T> storage;
+        private readonly DBCDInfo info;
+        private readonly DBReader reader;
 
-        string[] IDBCDStorage.AvailableColumns => this.availableColumns;
+        string[] IDBCDStorage.AvailableColumns => this.info.availableColumns;
+        public override string ToString() => $"{this.info.tableName}";
 
         public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBParser(stream), info) { }
 
@@ -82,16 +104,28 @@ namespace DBCD
             dbReader.ClearCache();
         }
 
+        public IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader)
+        {
+            return this.ApplyingHotfixes(hotfixReader, null);
+        }
+
+        public IDBCDStorage ApplyingHotfixes(HotfixReader hotfixReader, HotfixReader.RowProcessor processor)
+        {
+            var mutableStorage = this.storage.ToDictionary(k => k.Key, v => v.Value);
+
+            hotfixReader.ApplyHotfixes(mutableStorage, this.reader, processor);
+
+            return new DBCDStorage<T>(this.reader, new ReadOnlyDictionary<int, T>(mutableStorage), this.info);
+        }
+
         IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()
         {
             var enumerator = GetEnumerator();
             while (enumerator.MoveNext())
                 yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
         }
-        
-        IDictionary IDBCDStorage.BackingCollection => storage;
 
-        public override string ToString() => $"{this.tableName}";
-
+        public Dictionary<ulong, int> GetEncryptedSections() => this.reader.GetEncryptedSections();
+        public Dictionary<ulong, int[]> GetEncryptedIDs() => this.reader.GetEncryptedIDs();
     }
 }

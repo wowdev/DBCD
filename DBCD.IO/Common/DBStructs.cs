@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 #pragma warning disable CS0649
@@ -6,6 +7,18 @@ using System.Runtime.InteropServices;
 
 namespace DBCD.IO.Common
 {
+    public interface IEncryptableDatabaseSection
+    {
+        ulong TactKeyLookup { get; }
+        int NumRecords { get; }
+    }
+
+    public interface IEncryptionSupportingReader
+    {
+        List<IEncryptableDatabaseSection> GetEncryptedSections();
+        Dictionary<ulong, int[]> GetEncryptedIDs();
+    }
+
     struct FieldMetaData
     {
         public short Bits;
@@ -56,6 +69,7 @@ namespace DBCD.IO.Common
     {
         unsafe fixed byte Value[4];
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T GetValue<T>() where T : struct
         {
             unsafe
@@ -99,6 +113,7 @@ namespace DBCD.IO.Common
     {
         unsafe fixed byte Value[8];
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T GetValue<T>() where T : struct
         {
             unsafe
@@ -130,7 +145,7 @@ namespace DBCD.IO.Common
         public int NumRecords { get; set; }
         public int MinId { get; set; }
         public int MaxId { get; set; }
-        public ReferenceEntry[] Entries { get; set; }
+        public Dictionary<int, int> Entries { get; set; } = new Dictionary<int, int>();
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 2)]
@@ -141,7 +156,7 @@ namespace DBCD.IO.Common
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 2)]
-    struct SectionHeader
+    struct SectionHeader : IEncryptableDatabaseSection
     {
         public ulong TactKeyLookup;
         public int FileOffset;
@@ -151,10 +166,13 @@ namespace DBCD.IO.Common
         public int SparseTableOffset; // CatalogDataOffset, absolute value, {uint offset, ushort size}[MaxId - MinId + 1]
         public int IndexDataSize; // int indexData[IndexDataSize / 4]
         public int ParentLookupDataSize; // uint NumRecords, uint minId, uint maxId, {uint id, uint index}[NumRecords], questionable usefulness...
+
+        ulong IEncryptableDatabaseSection.TactKeyLookup => this.TactKeyLookup;
+        int IEncryptableDatabaseSection.NumRecords => this.NumRecords;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 2)]
-    struct SectionHeaderWDC3
+    struct SectionHeaderWDC3 : IEncryptableDatabaseSection
     {
         public ulong TactKeyLookup;
         public int FileOffset;
@@ -165,6 +183,26 @@ namespace DBCD.IO.Common
         public int ParentLookupDataSize; // uint NumRecords, uint minId, uint maxId, {uint id, uint index}[NumRecords], questionable usefulness...
         public int OffsetMapIDCount;
         public int CopyTableCount;
+
+        ulong IEncryptableDatabaseSection.TactKeyLookup => this.TactKeyLookup;
+        int IEncryptableDatabaseSection.NumRecords => this.NumRecords;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 2)]
+    struct SectionHeaderWDC4 : IEncryptableDatabaseSection
+    {
+        public ulong TactKeyLookup;
+        public int FileOffset;
+        public int NumRecords;
+        public int StringTableSize;
+        public int OffsetRecordsEndOffset; // CatalogDataOffset, absolute value, {uint offset, ushort size}[MaxId - MinId + 1]
+        public int IndexDataSize; // int indexData[IndexDataSize / 4]
+        public int ParentLookupDataSize; // uint NumRecords, uint minId, uint maxId, {uint id, uint index}[NumRecords], questionable usefulness...
+        public int OffsetMapIDCount;
+        public int CopyTableCount;
+
+        ulong IEncryptableDatabaseSection.TactKeyLookup => this.TactKeyLookup;
+        int IEncryptableDatabaseSection.NumRecords => this.NumRecords;
     }
 
 }

@@ -76,7 +76,7 @@ namespace DBCD.IO.Readers
                     else
                         Id = GetFieldValue<int>(m_data);
 
-                    info.Setter(entry, Convert.ChangeType(Id, info.Field.FieldType));
+                    info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
                 }
 
@@ -86,20 +86,20 @@ namespace DBCD.IO.Readers
                 // 0x2 SecondaryKey
                 if (fieldIndex >= m_reader.FieldsCount)
                 {
-                    info.Setter(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.Field.FieldType));
+                    info.Setter(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.FieldType));
                     continue;
                 }
 
                 if (info.IsArray)
                 {
-                    if (arrayReaders.TryGetValue(info.Field.FieldType, out var reader))
+                    if (arrayReaders.TryGetValue(info.FieldType, out var reader))
                         value = reader(m_data, m_reader.StringTable, info.Cardinality);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
-                    if (simpleReaders.TryGetValue(info.Field.FieldType, out var reader))
+                    if (simpleReaders.TryGetValue(info.FieldType, out var reader))
                         value = reader(m_data, m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);

@@ -24,9 +24,9 @@ namespace DBCD.IO.Readers
         private readonly ColumnMetaData[] m_columnMeta;
         private readonly Value32[][] m_palletData;
         private readonly Dictionary<int, Value32>[] m_commonData;
-        private readonly ReferenceEntry? m_refData;
+        private readonly int m_refID;
 
-        public WDC2Row(BaseReader reader, BitReader data, int recordsOffset, int id, ReferenceEntry? refData, int recordIndex)
+        public WDC2Row(BaseReader reader, BitReader data, int recordsOffset, int id, int refID, int recordIndex)
         {
             m_reader = reader;
             m_data = data;
@@ -40,7 +40,7 @@ namespace DBCD.IO.Readers
             m_columnMeta = reader.ColumnMeta;
             m_palletData = reader.PalletData;
             m_commonData = reader.CommonData;
-            m_refData = refData;
+            m_refID = refID;
 
             Id = id;
         }
@@ -102,7 +102,7 @@ namespace DBCD.IO.Readers
                         Id = GetFieldValue<int>(0, m_data, m_fieldMeta[i], m_columnMeta[i], m_palletData[i], m_commonData[i]);
                     }
 
-                    info.Setter(entry, Convert.ChangeType(Id, info.Field.FieldType));
+                    info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
                 }
 
@@ -111,8 +111,7 @@ namespace DBCD.IO.Readers
 
                 if (fieldIndex >= m_reader.Meta.Length)
                 {
-                    value = m_refData?.Id ?? 0;
-                    info.Setter(entry, Convert.ChangeType(value, info.Field.FieldType));
+                    info.Setter(entry, Convert.ChangeType(m_refID, info.FieldType));
                     continue;
                 }
 
@@ -124,14 +123,14 @@ namespace DBCD.IO.Readers
 
                 if (info.IsArray)
                 {
-                    if (arrayReaders.TryGetValue(info.Field.FieldType, out var reader))
+                    if (arrayReaders.TryGetValue(info.FieldType, out var reader))
                         value = reader(m_data, m_recordsOffset, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], m_reader.StringTable);
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
-                    if (simpleReaders.TryGetValue(info.Field.FieldType, out var reader))
+                    if (simpleReaders.TryGetValue(info.FieldType, out var reader))
                         value = reader(Id, m_data, m_recordsOffset, m_fieldMeta[fieldIndex], m_columnMeta[fieldIndex], m_palletData[fieldIndex], m_commonData[fieldIndex], m_reader.StringTable, m_reader);
                     else
                         throw new Exception("Unhandled field type: " + typeof(T).Name);
@@ -246,7 +245,7 @@ namespace DBCD.IO.Readers
         }
     }
 
-    class WDC2Reader : BaseReader
+    class WDC2Reader : BaseEncryptionSupportingReader
     {
         public uint Signature { get; }
 
@@ -293,7 +292,8 @@ namespace DBCD.IO.Readers
                 if (sectionsCount == 0 || RecordsCount == 0)
                     return;
 
-                SectionHeader[] sections = reader.ReadArray<SectionHeader>(sectionsCount);
+                var sections = reader.ReadArray<SectionHeader>(sectionsCount).ToList();
+                this.m_sections = sections.OfType<IEncryptableDatabaseSection>().ToList();
 
                 // field meta data
                 Meta = reader.ReadArray<FieldMetaData>(FieldsCount);
@@ -392,17 +392,16 @@ namespace DBCD.IO.Readers
                         CopyData[reader.ReadInt32()] = reader.ReadInt32();
 
                     // reference data
-                    ReferenceData refData = null;
+                    ReferenceData refData = new ReferenceData();
                     if (sections[sectionIndex].ParentLookupDataSize > 0)
                     {
-                        refData = new ReferenceData
-                        {
-                            NumRecords = reader.ReadInt32(),
-                            MinId = reader.ReadInt32(),
-                            MaxId = reader.ReadInt32()
-                        };
+                        refData.NumRecords = reader.ReadInt32();
+                        refData.MinId = reader.ReadInt32();
+                        refData.MaxId = reader.ReadInt32();
 
-                        refData.Entries = reader.ReadArray<ReferenceEntry>(refData.NumRecords);
+                        var entries = reader.ReadArray<ReferenceEntry>(refData.NumRecords);
+                        for (int i = 0; i < entries.Length; i++)
+                            refData.Entries[entries[i].Index] = entries[i].Id;
                     }
 
                     int position = 0;
@@ -416,9 +415,13 @@ namespace DBCD.IO.Readers
                             position += SparseEntries[i].Size * 8;
                         }
                         else
+                        {
                             bitReader.Offset = i * RecordSize;
+                        }
 
-                        IDBRow rec = new WDC2Row(this, bitReader, sections[sectionIndex].FileOffset, sections[sectionIndex].IndexDataSize != 0 ? IndexData[i] : -1, refData?.Entries.ElementAtOrDefault(i), i);
+                        refData.Entries.TryGetValue(i, out int refId);
+
+                        IDBRow rec = new WDC2Row(this, bitReader, sections[sectionIndex].FileOffset, sections[sectionIndex].IndexDataSize != 0 ? m_indexData[i] : -1, refId, i);
                         _Records.Add(i, rec);
                     }
                 }
