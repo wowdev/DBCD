@@ -1,15 +1,10 @@
 ﻿using DBCD.Providers;
-using DBCD.IO.Attributes;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.IO;
-using DBCD.IO;
-using System.Linq;
 
 namespace DBCD.Tests
 {
     [TestClass]
-    public class UnitTest1
+    public class ReadingTest
     {
         static GithubDBDProvider githubDBDProvider = new(true);
         static readonly WagoDBCProvider wagoDBCProvider = new();
