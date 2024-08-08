@@ -248,7 +248,7 @@ namespace DBCD.IO.Readers
 
     class WDC5Reader : BaseEncryptionSupportingReader
     {
-        private const int HeaderSize = 72;
+        private const int HeaderSize = 200;
         private const uint WDC5FmtSig = 0x35434457; // WDC5
 
         public WDC5Reader(string dbcFile) : this(new FileStream(dbcFile, FileMode.Open)) { }
