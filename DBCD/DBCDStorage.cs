@@ -108,10 +108,11 @@ namespace DBCD
 
         DBCDRow ConstructRow(int index);
 
+        Dictionary<ulong, int> GetEncryptedSections();
+        Dictionary<ulong, int[]> GetEncryptedIDs();
+
         void ApplyingHotfixes(HotfixReader hotfixReader);
         void ApplyingHotfixes(HotfixReader hotfixReader, HotfixReader.RowProcessor processor);
-
-        Dictionary<ulong, int> GetEncryptedSections();
 
         void Save(string filename);
 
@@ -145,15 +146,6 @@ namespace DBCD
             storage.Clear();
         }
 
-        IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()
-        {
-            var enumerator = GetEnumerator();
-            while (enumerator.MoveNext())
-                yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
-        }
-
-        public Dictionary<ulong, int> GetEncryptedSections() => this.parser.GetEncryptedSections();
-
         public void ApplyingHotfixes(HotfixReader hotfixReader)
         {
             this.ApplyingHotfixes(hotfixReader, null);
@@ -166,7 +158,7 @@ namespace DBCD
             hotfixReader.ApplyHotfixes(mutableStorage, this.parser, processor);
 
 #if NETSTANDARD2_0
-            foreach(var record in mutableStorage)
+            foreach (var record in mutableStorage)
                 base[record.Key] = new DBCDRow(record.Key, record.Value, fieldAccessor);
 #else
             foreach (var (id, row) in mutableStorage)
@@ -175,6 +167,16 @@ namespace DBCD
             foreach (var key in mutableStorage.Keys.Except(base.Keys))
                 base.Remove(key);
         }
+
+        IEnumerator<DynamicKeyValuePair<int>> IEnumerable<DynamicKeyValuePair<int>>.GetEnumerator()
+        {
+            var enumerator = GetEnumerator();
+            while (enumerator.MoveNext())
+                yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
+        }
+
+        public Dictionary<ulong, int> GetEncryptedSections() => this.parser.GetEncryptedSections();
+        public Dictionary<ulong, int[]> GetEncryptedIDs() => this.parser.GetEncryptedIDs();
 
         public void Save(string filename)
         {
@@ -186,8 +188,6 @@ namespace DBCD
             foreach (var (id, record) in new SortedDictionary<int, DBCDRow>(this))
                 storage.Add(id, record.AsType<T>());
 #endif
-
-
             storage?.Save(filename);
         }
 
