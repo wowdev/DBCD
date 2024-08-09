@@ -399,6 +399,12 @@ namespace DBCD.IO.Writers
                     writer.BaseStream.Position = oldPos;
 
                     WriteOffsetRecords(writer, serializer, recordsOffset, maxIndex - minIndex + 1);
+
+                    // Ensure we are at the right offset
+                    var currentOffset = writer.BaseStream.Position;
+                    var supposedOffset = oldPos + ((maxIndex - minIndex + 1) * 6);
+                    if (currentOffset != supposedOffset)
+                        writer.BaseStream.Position = supposedOffset;
                 }
 
                 // index table
