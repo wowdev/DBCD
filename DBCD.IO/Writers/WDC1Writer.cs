@@ -56,22 +56,26 @@ namespace DBCD.IO.Writers
                 int fieldIndex = i - indexFieldOffSet;
 
                 // relationship field, used for faster lookup on IDs
-                if (info.IsRelation)
-                    m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
-
-                if (info.IsArray)
+                if (info.IsNonInlineRelation)
                 {
-                    if (arrayWriters.TryGetValue(info.FieldType, out var writer))
-                        writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], (Array)info.Getter(row));
-                    else
-                        throw new Exception("Unhandled array type: " + typeof(T).Name);
+                    m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
                 }
                 else
                 {
-                    if (simpleWriters.TryGetValue(info.FieldType, out var writer))
-                        writer(id, bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], info.Getter(row));
+                    if (info.IsArray)
+                    {
+                        if (arrayWriters.TryGetValue(info.FieldType, out var writer))
+                            writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], (Array)info.Getter(row));
+                        else
+                            throw new Exception("Unhandled array type: " + typeof(T).Name);
+                    }
                     else
-                        throw new Exception("Unhandled field type: " + typeof(T).Name);
+                    {
+                        if (simpleWriters.TryGetValue(info.FieldType, out var writer))
+                            writer(id, bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], info.Getter(row));
+                        else
+                            throw new Exception("Unhandled field type: " + typeof(T).Name);
+                    }
                 }
             }
 
