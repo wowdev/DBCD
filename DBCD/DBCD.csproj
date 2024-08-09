@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net6.0;net7.0;net8.0</TargetFrameworks>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -15,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DBFileReaderLib\DBFileReaderLib.csproj" />
+    <ProjectReference Include="..\DBCD.IO\DBCD.IO.csproj" />
   </ItemGroup>
 
 </Project>

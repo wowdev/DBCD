@@ -1,5 +1,5 @@
 using DBCD.Providers;
-using DBFileReaderLib;
+using DBCD.IO;
 using System;
 
 namespace DBCD
@@ -22,7 +22,7 @@ namespace DBCD
 
             var builder = new DBCDBuilder(locale);
 
-            var dbReader = new DBReader(dbcStream);
+            var dbReader = new DBParser(dbcStream);
             var definition = builder.Build(dbReader, dbdStream, tableName, build);
 
             var type = typeof(DBCDStorage<>).MakeGenericType(definition.Item1);

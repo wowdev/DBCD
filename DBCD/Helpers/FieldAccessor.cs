@@ -7,39 +7,48 @@ namespace DBCD.Helpers
 {
     internal class FieldAccessor
     {
-        public IEnumerable<string> FieldNames => _accessors.Keys;
+        public IEnumerable<string> FieldNames => _getters.Keys;
 
-        private readonly Dictionary<string, Func<object, dynamic>> _accessors;
+        private readonly Dictionary<string, Func<object, dynamic>> _getters;
+        private readonly Dictionary<string, Action<object, object>> _setters;
+
         private readonly CultureInfo _convertCulture;
 
         public FieldAccessor(Type type, string[] fields)
         {
-            _accessors = new Dictionary<string, Func<object, dynamic>>();
+            _getters = new Dictionary<string, Func<object, dynamic>>();
+            _setters = new Dictionary<string, Action<object, object>>();
             _convertCulture = CultureInfo.InvariantCulture;
 
             var ownerParameter = Expression.Parameter(typeof(object));
+            var valueParameter = Expression.Parameter(typeof(object));
 
             foreach (var field in fields)
             {
                 var fieldExpression = Expression.Field(Expression.Convert(ownerParameter, type), field);
-                var conversionExpression = Expression.Convert(fieldExpression, typeof(object));
-                var accessorExpression = Expression.Lambda<Func<object, dynamic>>(conversionExpression, ownerParameter);
 
-                _accessors.Add(field, accessorExpression.Compile());
+                var conversionExpression = Expression.Convert(fieldExpression, typeof(object));
+                var getterExpression = Expression.Lambda<Func<object, dynamic>>(conversionExpression, ownerParameter);
+                _getters.Add(field, getterExpression.Compile());
+
+
+                var assignExpression = Expression.Assign(fieldExpression, Expression.Convert(valueParameter, fieldExpression.Type));
+                var setterExpression = Expression.Lambda<Action<object, object>>(assignExpression, ownerParameter, valueParameter);
+                _setters.Add(field, setterExpression.Compile());
             }
         }
 
-
         public object this[object obj, string key]
         {
-            get => _accessors[key](obj);
+            get => _getters[key](obj);
+            set => _setters[key](obj, value);
         }
 
         public bool TryGetMember(object obj, string field, out object value)
         {
-            if (_accessors.TryGetValue(field, out var accessor))
+            if (_getters.TryGetValue(field, out var getter))
             {
-                value = accessor(obj);
+                value = getter(obj);
                 return true;
             }
             else
@@ -49,9 +58,20 @@ namespace DBCD.Helpers
             }
         }
 
+        public bool TrySetMember(object obj, string field, object value)
+        {
+            if (_setters.TryGetValue(field, out var setter))
+            {
+                setter(obj, value);
+                return true;
+            }
+
+            return false;
+        }
+
         public T GetMemberAs<T>(object obj, string field)
         {
-            var value = _accessors[field](obj);
+            var value = _getters[field](obj);
 
             if (value is T direct)
                 return direct;
@@ -65,7 +85,6 @@ namespace DBCD.Helpers
                 return (T)Convert.ChangeType(value, typeof(T), _convertCulture);
             }
         }
-
 
         private T ConvertArray<T>(Array array)
         {
