@@ -183,17 +183,34 @@ namespace DBCD.IO.Writers
                                 newCompressedSize = 32;
                             else
                             {
-                                var maxValue = storage.Values.Count switch
+                                if ((meta.Immediate.Flags & 0x1) == 0x1)
                                 {
-                                    0 => 0U,
-                                    _ => storage.Values.AsParallel().Max(row =>
+                                    var largestMSB = storage.Values.Count switch
                                     {
-                                        var value32 = Value32.Create(info.Getter(row));
-                                        return value32.GetValue<uint>();
-                                    }),
-                                };
+                                        0 => 0,
+                                        _ => storage.Values.AsParallel().Max(row =>
+                                        {
+                                            var value32 = Value32.Create(info.Getter(row));
+                                            return value32.GetValue<int>().MostSignificantBit();
+                                        }),
+                                    };
 
-                                newCompressedSize = maxValue.MostSignificantBit();
+                                    newCompressedSize = largestMSB + 1;
+                                }
+                                else
+                                {
+                                    var maxValue = storage.Values.Count switch
+                                    {
+                                        0 => 0U,
+                                        _ => storage.Values.AsParallel().Max(row =>
+                                        {
+                                            var value32 = Value32.Create(info.Getter(row));
+                                            return value32.GetValue<uint>();
+                                        }),
+                                    };
+
+                                    newCompressedSize = maxValue.MostSignificantBit();
+                                }
                             }
                             break;
                         }
