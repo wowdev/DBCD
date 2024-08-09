@@ -282,7 +282,9 @@ namespace DBCD.IO.Writers
             StringTableSize++;
 
             PackedDataOffset = reader.PackedDataOffset;
-            HandleCompression(storage);
+            var (commonDataSize, palletDataSize, referenceDataSize) = (0, 0, 0);
+            if (ColumnMeta != null)
+                HandleCompression(storage);
 
             WDC2RowSerializer<T> serializer = new WDC2RowSerializer<T>(this);
             serializer.Serialize(storage);
@@ -295,7 +297,8 @@ namespace DBCD.IO.Writers
 
             RecordsCount = serializer.Records.Count - CopyData.Count;
 
-            var (commonDataSize, palletDataSize, referenceDataSize) = GetDataSizes();
+            if (ColumnMeta != null)
+                (commonDataSize, palletDataSize, referenceDataSize) = GetDataSizes();
 
             using (var writer = new BinaryWriter(stream))
             {
@@ -318,8 +321,8 @@ namespace DBCD.IO.Writers
 
                 writer.Write(FieldsCount); // totalFieldCount
                 writer.Write(PackedDataOffset);
-                writer.Write(ReferenceData.Count > 0 ? 1 : 0); // RelationshipColumnCount
-                writer.Write(ColumnMeta.Length * 24); // ColumnMetaDataSize
+                writer.Write(ReferenceData != null && ReferenceData.Count > 0 ? 1 : 0); // RelationshipColumnCount
+                writer.Write(ColumnMeta != null && ColumnMeta.Length > 0 ? ColumnMeta.Length * 24 : 0); // ColumnMetaDataSize
                 writer.Write(commonDataSize);
                 writer.Write(palletDataSize);
                 writer.Write(1); // sections count
