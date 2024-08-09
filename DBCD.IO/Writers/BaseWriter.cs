@@ -83,7 +83,10 @@ namespace DBCD.IO.Writers
         {
             var sparseIdLookup = new Dictionary<int, uint>(sparseCount);
 
-            for (int i = 0; i < sparseCount; i++)
+            var startRecord = serializer.Records.First().Key;
+            var endRecord = serializer.Records.Last().Key;
+
+            for (int i = startRecord; i <= endRecord; i++)
             {
                 if (serializer.Records.TryGetValue(i, out var record))
                 {
@@ -91,12 +94,12 @@ namespace DBCD.IO.Writers
                     {
                         // copy records use their parent's offset
                         writer.Write(sparseIdLookup[copyid]);
-                        writer.Write(record.TotalBytesWrittenOut);
+                        writer.Write((ushort)record.TotalBytesWrittenOut);
                     }
                     else
                     {
                         writer.Write(sparseIdLookup[i] = recordOffset);
-                        writer.Write(record.TotalBytesWrittenOut);
+                        writer.Write((ushort)record.TotalBytesWrittenOut);
                         recordOffset += (uint)record.TotalBytesWrittenOut;
                     }
                 }
