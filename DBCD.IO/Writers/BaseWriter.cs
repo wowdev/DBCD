@@ -264,6 +264,8 @@ namespace DBCD.IO.Writers
             }
 
             PackedDataOffset = Math.Max(0, PackedDataOffset);
+
+            // TODO: Review how Blizzard handles this. This behavior matches a lot of the original DB2s, but not all. Maybe some math needs doing to make sure we're on 4 byte boundaries?
             RecordSize = ((RecordSize + 8 - 1) / 8);
         }
 
