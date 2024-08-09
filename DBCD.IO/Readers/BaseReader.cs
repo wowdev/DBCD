@@ -12,15 +12,29 @@ namespace DBCD.IO.Readers
         public int FieldsCount { get; protected set; }
         public int RecordSize { get; protected set; }
         public int StringTableSize { get; protected set; }
-        public uint TableHash { get; protected set; }
-        public uint LayoutHash { get; protected set; }
+
+        // WDB2-WDB3
+        public uint Build { get; protected set; }
+
+        // WDB2+
         public int MinIndex { get; protected set; }
         public int MaxIndex { get; protected set; }
-        public int IdFieldIndex { get; protected set; }
+
+        // WDB3+
         public DB2Flags Flags { get; protected set; }
         public int Locale { get; protected set; }
-        public uint Build { get; protected set; }
+
+        // WDB5+
+        public uint TableHash { get; protected set; }
+        public uint LayoutHash { get; protected set; }
+        public int IdFieldIndex { get; protected set; }
+
+        // WDC1+
         public int PackedDataOffset { get; protected set; }
+
+        // WDC5+
+        public uint SchemaVersion { get; protected set; }
+        public string SchemaString { get; protected set; }
 
         #region Data
 

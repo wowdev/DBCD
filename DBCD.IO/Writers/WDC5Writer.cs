@@ -300,7 +300,7 @@ namespace DBCD.IO.Writers
 
             var (commonDataSize, palletDataSize, referenceDataSize) = GetDataSizes();
 
-            var staticVersionString = "WowStatic_Patch_10_2_7"; // @TODO Make string dynamic based on build
+            var staticVersionString = reader.SchemaString; // TODO: Allow overriding
 
             using (var writer = new BinaryWriter(stream))
             {
@@ -308,7 +308,7 @@ namespace DBCD.IO.Writers
                 int maxIndex = storage.Keys.MaxOrDefault();
 
                 writer.Write(WDC5FmtSig);
-                writer.Write((uint)5); // numeric version
+                writer.Write(reader.SchemaVersion);
                 writer.Write(Encoding.ASCII.GetBytes(staticVersionString.PadRight(128, '\0')));
                 writer.Write(RecordsCount);
                 writer.Write(FieldsCount);

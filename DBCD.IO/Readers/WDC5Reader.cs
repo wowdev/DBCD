@@ -265,9 +265,8 @@ namespace DBCD.IO.Readers
                 if (magic != WDC5FmtSig)
                     throw new InvalidDataException("WDC5 file is corrupted!");
 
-                var versionButInteger = reader.ReadUInt32();
-                var buildStringWithFarTooMuchPadding = reader.ReadBytes(128);
-
+                SchemaVersion = reader.ReadUInt32();
+                SchemaString = Encoding.UTF8.GetString(reader.ReadBytes(128)).TrimEnd('\0');
                 RecordsCount = reader.ReadInt32();
                 FieldsCount = reader.ReadInt32();
                 RecordSize = reader.ReadInt32();
