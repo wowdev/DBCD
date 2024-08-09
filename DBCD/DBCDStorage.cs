@@ -13,7 +13,7 @@ namespace DBCD
 {
     public class DBCDRow : DynamicObject
     {
-        private int ID;
+        public int ID;
 
         private readonly dynamic raw;
         private FieldAccessor fieldAccessor;
