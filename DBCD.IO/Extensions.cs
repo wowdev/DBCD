@@ -6,7 +6,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace DBCD.IO
@@ -55,6 +54,38 @@ namespace DBCD.IO
             return Unsafe.ReadUnaligned<T>(ref result[0]);
         }
 
+
+        /// <summary>
+        /// Reads a NUL-separated string table from the current stream
+        /// </summary>
+        /// <param name="StringTableSize">Size of the string table</param>
+        /// <param name="usePos">Use WDC2-style position-base table key numbering</param>
+        /// <param name="BaseOffset">Base offset to use for the string table keys</param>
+        public static Dictionary<long, string> ReadStringTable(this BinaryReader reader, int stringTableSize, int baseOffset = 0, bool usePos = false)
+        {
+            var StringTable = new Dictionary<long, string>(stringTableSize / 0x20);
+
+            if(stringTableSize == 0)
+                return StringTable;
+
+            var curOfs = 0;
+            var decoded = Encoding.UTF8.GetString(reader.ReadBytes(stringTableSize));
+            foreach (var str in decoded.Split('\0'))
+            {
+                if (curOfs == stringTableSize)
+                    break;
+
+                if(usePos)
+                    StringTable[(reader.BaseStream.Position - stringTableSize) + curOfs] = str;
+                else
+                    StringTable[baseOffset + curOfs] = str;
+
+                curOfs += Encoding.UTF8.GetByteCount(str) + 1;
+            }
+
+            return StringTable;
+        }
+
         public static T[] ReadArray<T>(this BinaryReader reader) where T : struct
         {
             int numBytes = (int)reader.ReadInt64();
@@ -67,7 +98,7 @@ namespace DBCD.IO
 
         public static T[] ReadArray<T>(this BinaryReader reader, int size) where T : struct
         {
-            int numBytes = Marshal.SizeOf<T>() * size;
+            int numBytes = Unsafe.SizeOf<T>() * size;
 
             byte[] result = reader.ReadBytes(numBytes);
             return result.CopyTo<T>();
@@ -126,6 +157,7 @@ namespace DBCD.IO
         /// the current stream and advances the current position of the stream by string length + 1.
         /// <seealso cref="BinaryReader.ReadString"/>
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string ReadCString(this BinaryReader reader)
         {
             return reader.ReadCString(Encoding.UTF8);
@@ -135,6 +167,7 @@ namespace DBCD.IO
         /// the current stream and advances the current position of the stream by string length + 1.
         /// <seealso cref="BinaryReader.ReadString"/>
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string ReadCString(this BinaryReader reader, Encoding encoding)
         {
             var bytes = new System.Collections.Generic.List<byte>(0x20);
@@ -168,7 +201,7 @@ namespace DBCD.IO
     /// A <see langword="class"/> that provides extension methods for numeric types
     /// </summary>
     public static class NumericExtensions
-    {       
+    {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int MostSignificantBit(this int n)

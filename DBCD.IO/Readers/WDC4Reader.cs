@@ -352,12 +352,9 @@ namespace DBCD.IO.Readers
                         if (StringTable == null)
                             StringTable = new Dictionary<long, string>(section.StringTableSize / 0x20);
 
-                        for (int i = 0; i < section.StringTableSize;)
-                        {
-                            long oldPos = reader.BaseStream.Position;
-                            StringTable[i + previousStringTableSize] = reader.ReadCString();
-                            i += (int)(reader.BaseStream.Position - oldPos);
-                        }
+                        var sectionStringTable = reader.ReadStringTable(section.StringTableSize, previousStringTableSize);
+                        foreach (var entry in sectionStringTable)
+                            StringTable[entry.Key] = entry.Value;
 
                         previousStringTableSize += section.StringTableSize;
                     }

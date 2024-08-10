@@ -336,13 +336,7 @@ namespace DBCD.IO.Readers
                         RecordsData = data;
 
                         // string data
-                        StringTable = new Dictionary<long, string>(sections[sectionIndex].StringTableSize / 0x20);
-                        for (int i = 0; i < sections[sectionIndex].StringTableSize;)
-                        {
-                            long oldPos = reader.BaseStream.Position;
-                            StringTable[oldPos] = reader.ReadCString();
-                            i += (int)(reader.BaseStream.Position - oldPos);
-                        }
+                        StringTable = reader.ReadStringTable(sections[sectionIndex].StringTableSize, 0, true);
                     }
                     else
                     {

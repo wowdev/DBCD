@@ -220,13 +220,7 @@ namespace DBCD.IO.Readers
                 }
 
                 // string table
-                StringTable = new Dictionary<long, string>(StringTableSize / 0x20);
-                for (int i = 0; i < StringTableSize;)
-                {
-                    long oldPos = reader.BaseStream.Position;
-                    StringTable[i] = reader.ReadCString();
-                    i += (int)(reader.BaseStream.Position - oldPos);
-                }
+                StringTable = reader.ReadStringTable(StringTableSize);
 
                 // index table
                 if ((reader.BaseStream.Position + copyTableSize) < reader.BaseStream.Length)

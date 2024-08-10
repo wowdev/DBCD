@@ -150,13 +150,7 @@ namespace DBCD.IO.Readers
                     _Records.Add(i, rec);
                 }
 
-                StringTable = new Dictionary<long, string>(StringTableSize / 0x20);
-                for (int i = 0; i < StringTableSize;)
-                {
-                    long oldPos = reader.BaseStream.Position;
-                    StringTable[i] = reader.ReadCString();
-                    i += (int)(reader.BaseStream.Position - oldPos);
-                }
+                StringTable = reader.ReadStringTable(StringTableSize);
             }
         }
     }
