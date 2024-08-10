@@ -2,4 +2,4 @@
 using BenchmarkDotNet.Running;
 using DBCD.Benchmark.Benchmarks;
 
-BenchmarkRunner.Run<WritingBenchmark>();
+BenchmarkRunner.Run<StringTableBench>();
