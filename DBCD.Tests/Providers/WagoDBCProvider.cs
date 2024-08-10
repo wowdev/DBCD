@@ -56,8 +56,8 @@ namespace DBCD.Providers
             var cacheFile = Path.Combine("DBCCache", build, tableName + ".db2");
             if (File.Exists(cacheFile))
             {
-                var lastWrite = File.GetLastWriteTime(cacheFile);
-                if (DateTime.Now - lastWrite < new TimeSpan(1, 0, 0, 0))
+                //var lastWrite = File.GetLastWriteTime(cacheFile);
+                //if (DateTime.Now - lastWrite < new TimeSpan(1, 0, 0, 0))
                     return new MemoryStream(File.ReadAllBytes(cacheFile));
             }
 

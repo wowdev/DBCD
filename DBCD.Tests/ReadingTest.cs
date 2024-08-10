@@ -2,7 +2,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
-using System.Net.Http;
 
 namespace DBCD.Tests
 {
@@ -112,11 +111,26 @@ namespace DBCD.Tests
         public void TestReadingAllDB2s()
         {
             return; // Only run this test manually
+            var localDBDProvider = new FilesystemDBDProvider("D:\\Projects\\WoWDBDefs\\definitions");
 
-            var build = "9.1.0.39653"; // WDC3
+            //var build = "3.3.5.12340"; // WDBC
+            //var build = "6.0.1.18179"; // WDB2
+            //var build = "7.0.1.20740"; // WDB3, only 1 DBD sadly
+            //var build = "7.0.1.20810"; // WDB4, only 2 DBDs sadly
+            //var build = "7.2.0.23436"; // WDB5, only Map.db2
+            //var build = "7.3.5.25928"; // WDB6
+            //var build = "7.3.5.25928"; // WDC1
+            //var build = "8.0.1.26231"; // WDC2
+            //var build = "9.1.0.39653"; // WDC3
+            //var build = "10.1.0.48480"; // WDC4
+            var build = "11.0.2.56044"; // WDC5
 
-            var dbcd = new DBCD(wagoDBCProvider, githubDBDProvider);
+            var localDBCProvider = new FilesystemDBCProvider(Path.Combine("DBCCache", build));
+            var dbcd = new DBCD(localDBCProvider, localDBDProvider);
             var allDB2s = wagoDBCProvider.GetAllTableNames();
+
+            var attemptedTables = 0;
+            var successfulTables = 0;
 
             foreach (var tableName in allDB2s)
             {
@@ -124,26 +138,28 @@ namespace DBCD.Tests
                 if (tableName == "UnitTestSparse")
                     continue;
 
+                if (!localDBDProvider.ContainsBuild(tableName, build))
+                    continue;
+
+                attemptedTables++;
+
                 try
                 {
                     var storage = dbcd.Load(tableName, build);
+                    successfulTables++;
                 }
-                catch(FileNotFoundException e)
+                catch (FileNotFoundException e)
                 {
                     Console.WriteLine($"Failed to load {tableName} for build {build}, does not exist in build.");
+                    successfulTables++; // this counts
                 }
-                catch(AggregateException e)
+                catch (Exception e)
                 {
-                    if(e.InnerException is HttpRequestException)
-                    {
-                        Console.WriteLine($"Failed to load {tableName} for build {build}, does not exist.");
-                    }
-                    else
-                    {
-                        throw e;
-                    }
+                    Console.WriteLine("Failed to load " + tableName + " for build " + build + ": " + e.Message + "\n" + e.StackTrace);
                 }
             }
+
+            Assert.AreEqual(attemptedTables, successfulTables);
         }
 
         //[TestMethod]
