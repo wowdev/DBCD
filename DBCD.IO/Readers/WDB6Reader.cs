@@ -215,7 +215,9 @@ namespace DBCD.IO.Readers
                 int commonDataSize = reader.ReadInt32();
 
                 // field meta data
-                Meta = reader.ReadArray<FieldMetaData>(FieldsCount);
+                var meta = reader.ReadArray<FieldMetaData>(FieldsCount);
+                Array.Resize(ref meta, totalFieldCount);
+                Meta = meta;
 
                 if (RecordsCount == 0)
                     return;
@@ -282,10 +284,6 @@ namespace DBCD.IO.Readers
 
                 if (commonDataSize > 0)
                 {
-                    var meta = reader.ReadArray<FieldMetaData>(FieldsCount);
-                    Array.Resize(ref meta, totalFieldCount);
-                    Meta = meta;
-
                     int fieldCount = reader.ReadInt32();
                     CommonData = new Dictionary<int, Value32>[fieldCount];
 
