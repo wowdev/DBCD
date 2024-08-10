@@ -63,10 +63,11 @@ namespace DBCD.IO.Readers
         {
             var index = recordOffset + (data.Position >> 3) + GetFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData);
 
-            if (!stringTable.TryGetValue(index, out string result))
-                result = "";
+            // This presumably is needed because when strings are supposed to be empty ('0' in record data) the index turns negative, which is invalid.
+            if (index < 0)
+                index = 0;
 
-            return result;
+            return stringTable[index];
         }
 
         private static Dictionary<Type, Func<BitReader, int, FieldMetaData, ColumnMetaData, Value32[], Dictionary<int, Value32>, Dictionary<long, string>, object>> arrayReaders = new Dictionary<Type, Func<BitReader, int, FieldMetaData, ColumnMetaData, Value32[], Dictionary<int, Value32>, Dictionary<long, string>, object>>
@@ -223,14 +224,12 @@ namespace DBCD.IO.Readers
                     for (int i = 0; i < array.Length; i++)
                     {
                         var index = (r.Position >> 3) + recordOffset + r.ReadValue64(bitSize).GetValue<int>();
-                        if (stringTable.TryGetValue(index, out string result))
-                        {
-                            array[i] = result;
-                        }
-                        else
-                        {
-                            array[i] = "";
-                        }
+
+                        // This presumably is needed because when strings are supposed to be empty ('0' in record data) the index turns negative, which is invalid.
+                        if (index < 0)
+                            index = 0;
+
+                        array[i] = stringTable[index];
                     }
 
                     return array;
