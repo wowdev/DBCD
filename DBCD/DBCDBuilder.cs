@@ -1,7 +1,6 @@
 using DBDefsLib;
-using DBFileReaderLib;
-using DBFileReaderLib.Attributes;
-
+using DBCD.IO;
+using DBCD.IO.Attributes;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -36,7 +35,7 @@ namespace DBCD
             this.locale = locale;
         }
 
-        internal Tuple<Type, DBCDInfo> Build(DBReader dbcReader, Stream dbd, string name, string build)
+        internal Tuple<Type, DBCDInfo> Build(DBParser dbcReader, Stream dbd, string name, string build)
         {
             var dbdReader = new DBDReader();
 
