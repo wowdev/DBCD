@@ -6,6 +6,13 @@ C# library for reading and writing [DBC](https://wowdev.wiki/DBC)/[DB2](https://
 - Experimental writing (`WDC3` works, the others likely will too but are largely untested with actual WoW clients).
 - Applying of hotfixes (DBCache.bin).
 
+## Projects
+### DBCD
+Contains the glue between DBCD.IO, DBDefsLib and the providers.
+
+### DBCD.IO
+Contains the actual reading and writing of DBC/DB2 files.
+
 ## Limitations
 - _(Reading/Writing)_ Relies on [WoWDBDefs](https://github.com/wowdev/WoWDBDefs) (DBDs) for table structures, can not load tables without DBDs (yet).
 - _(Writing)_ Does not support writing out DB2s with multiple sections.

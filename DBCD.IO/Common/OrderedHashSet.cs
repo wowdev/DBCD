@@ -351,7 +351,7 @@ namespace DBCD.IO.Common
         }
 
         /// <summary>
-        /// Add item to this hashset. This is the explicit implementation of the ICollection<T>
+        /// Add item to this hashset. This is the explicit implementation of the ICollection{T}
         /// interface. The other Add method returns bool indicating whether item was added. 
         /// </summary>
         /// <param name="item">item to add</param> 
@@ -454,10 +454,10 @@ namespace DBCD.IO.Common
         }
 
         /// <summary>
-        /// Returns the zero-based index of the first occurrence of a value in the <see cref="OrderedHashSet<T>"/> or in a portion of it.
+        /// Returns the zero-based index of the first occurrence of a value in the <see cref="OrderedHashSet{T}"/> or in a portion of it.
         /// </summary>
-        /// <param name="item">The object to locate in the <see cref="OrderedHashSet<T>"/> .</param>
-        /// <returns>The zero-based index of the first occurrence of item within the range of elements in the <see cref="OrderedHashSet<T>"/> that extends from index to the last element, if found; otherwise, -1.</returns>
+        /// <param name="item">The object to locate in the <see cref="OrderedHashSet{T}"/> .</param>
+        /// <returns>The zero-based index of the first occurrence of item within the range of elements in the <see cref="OrderedHashSet{T}"/> that extends from index to the last element, if found; otherwise, -1.</returns>
         public int IndexOf(T item) => InternalIndexOf(item);
 
         /// <summary> 
@@ -972,7 +972,7 @@ namespace DBCD.IO.Common
         /// Add item to this HashSet. Returns bool indicating whether item was added (won't be 
         /// added if already present)
         /// </summary> 
-        /// <param name="item"></param>
+        /// <param name="value"></param>
         /// <returns>true if added, false if already present</returns>
         public bool Add(T value)
         {

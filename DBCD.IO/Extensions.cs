@@ -58,9 +58,10 @@ namespace DBCD.IO
         /// <summary>
         /// Reads a NUL-separated string table from the current stream
         /// </summary>
-        /// <param name="StringTableSize">Size of the string table</param>
+        /// <param name="reader">BinaryReader instance</param>
+        /// <param name="stringTableSize">Size of the string table</param>
         /// <param name="usePos">Use WDC2-style position-base table key numbering</param>
-        /// <param name="BaseOffset">Base offset to use for the string table keys</param>
+        /// <param name="baseOffset">Base offset to use for the string table keys</param>
         public static Dictionary<long, string> ReadStringTable(this BinaryReader reader, int stringTableSize, int baseOffset = 0, bool usePos = false)
         {
             var StringTable = new Dictionary<long, string>(stringTableSize / 0x20);
