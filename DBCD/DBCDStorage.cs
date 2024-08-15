@@ -195,9 +195,7 @@ namespace DBCD
 
         public DBCDRow ConstructRow(int index) {
             T raw = new();
-            var fieldNames = info.availableColumns;
-            var underlyingType = typeof(T);
-            var fields = underlyingType.GetFields();
+            var fields = typeof(T).GetFields();
             // Array Fields need to be initialized to fill their length
             var arrayFields = fields.Where(x => x.FieldType.IsArray);
             foreach (var arrayField in arrayFields)
