@@ -13,8 +13,58 @@ namespace DBCD.Tests
     public class WritingTest
     {
         public static string InputPath { get; } = $"{Directory.GetCurrentDirectory()}\\DBCCache";
-        public static WagoDBCProvider wagoDBCProvider = new();
 
+        public static string OutputPath = $"{Directory.GetCurrentDirectory()}\\tmp";
+
+        public static WagoDBCProvider wagoDBCProvider = new();
+        static GithubDBDProvider githubDBDProvider = new(true);
+
+        [ClassInitialize()]
+        public static void ClassInit(TestContext context)
+        {
+            if (Directory.Exists(OutputPath))
+            {
+                Directory.Delete(OutputPath, true);
+            }
+            Directory.CreateDirectory(OutputPath);
+        }
+
+        [ClassCleanup()]
+        public static void ClassCleanup()
+        {
+            Directory.Delete(OutputPath, true);
+        }
+
+
+        [TestMethod]
+        public void TestWritingNewRowDb2()
+        {
+            DBCD dbcd = new(wagoDBCProvider, githubDBDProvider);
+            IDBCDStorage storage = dbcd.Load("AlliedRace", "9.2.7.45745");
+
+            storage.Add(700000, storage.ConstructRow(700000));
+            storage.Save(Path.Join(OutputPath, "AlliedRace.db2"));
+
+            DBCD localDbcd = new(new FilesystemDBCProvider(OutputPath), githubDBDProvider);
+            IDBCDStorage outputStorage = localDbcd.Load("AlliedRace", "9.2.7.45745");
+
+            Assert.AreEqual(11, outputStorage.Count);
+        }
+
+        [TestMethod]
+        public void TestWritingNewRowDb2WithArrayField()
+        {
+            DBCD dbcd = new(wagoDBCProvider, githubDBDProvider);
+            IDBCDStorage storage = dbcd.Load("ItemDisplayInfo", "9.2.7.45745");
+
+            storage.Add(700000, storage.ConstructRow(700000));
+            storage.Save(Path.Join(OutputPath, "ItemDisplayInfo.db2"));
+
+            DBCD localDbcd = new(new FilesystemDBCProvider(OutputPath), githubDBDProvider);
+            IDBCDStorage outputStorage = localDbcd.Load("ItemDisplayInfo", "9.2.7.45745");
+
+            Assert.AreEqual(116146, outputStorage.Count);
+        }
 
         [TestMethod]
         public void TestWritingAllDB2s()
