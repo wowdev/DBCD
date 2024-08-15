@@ -1,6 +1,7 @@
 using DBCD.Helpers;
 
 using DBCD.IO;
+using DBCD.IO.Attributes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -8,6 +9,7 @@ using System.Collections.ObjectModel;
 using System.Dynamic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 namespace DBCD
 {
@@ -191,7 +193,30 @@ namespace DBCD
             storage?.Save(filename);
         }
 
-        public DBCDRow ConstructRow(int index) => new DBCDRow(index, new T(), fieldAccessor);
+        public DBCDRow ConstructRow(int index) {
+            T raw = new();
+            var fields = typeof(T).GetFields();
+            // Array Fields need to be initialized to fill their length
+            var arrayFields = fields.Where(x => x.FieldType.IsArray);
+            foreach (var arrayField in arrayFields)
+            {
+                var count = arrayField.GetCustomAttribute<CardinalityAttribute>().Count;
+                Array rowRecords = Array.CreateInstance(arrayField.FieldType.GetElementType(), count);
+                for (var i = 0; i < count; i++)
+                {
+                    rowRecords.SetValue(Activator.CreateInstance(arrayField.FieldType.GetElementType()), i);
+                }
+                arrayField.SetValue(raw, rowRecords);
+            }
+
+            // String Fields need to be initialized to empty string rather than null;
+            var stringFields = fields.Where(x => x.FieldType == typeof(string));
+            foreach (var stringField in stringFields)
+            {
+                stringField.SetValue(raw, string.Empty);
+            }
+            return new DBCDRow(index, raw, fieldAccessor);
+        }
 
         public Dictionary<int, DBCDRow> ToDictionary()
         {
