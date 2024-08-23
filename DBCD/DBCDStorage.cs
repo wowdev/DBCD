@@ -190,7 +190,8 @@ namespace DBCD
             foreach (var (id, record) in new SortedDictionary<int, DBCDRow>(this))
                 storage.Add(id, record.AsType<T>());
 #endif
-            storage?.Save(filename);
+            storage.Save(filename);
+            storage.Clear();
         }
 
         public DBCDRow ConstructRow(int index) {
