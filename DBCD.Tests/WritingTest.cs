@@ -67,6 +67,15 @@ namespace DBCD.Tests
         }
 
         [TestMethod]
+        public void TestSavingSameStorageTwice()
+        {
+            DBCD dbcd = new(wagoDBCProvider, githubDBDProvider);
+            IDBCDStorage storage = dbcd.Load("AlliedRace", "9.2.7.45745");
+            storage.Save(Path.Join(OutputPath, "AlliedRace.db2"));
+            storage.Save(Path.Join(OutputPath, "AlliedRace.db2"));
+        }
+
+        [TestMethod]
         public void TestWritingAllDB2s()
         {
             return; // Only run this test manually
