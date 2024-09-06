@@ -144,8 +144,6 @@ namespace DBCD
 
             foreach (var record in storage)
                 base.Add(record.Key, new DBCDRow(record.Key, record.Value, fieldAccessor));
-
-            storage.Clear();
         }
 
         public void ApplyingHotfixes(HotfixReader hotfixReader)
@@ -166,7 +164,7 @@ namespace DBCD
             foreach (var (id, row) in mutableStorage)
                 base[id] = new DBCDRow(id, row, fieldAccessor);
 #endif
-            foreach (var key in mutableStorage.Keys.Except(base.Keys))
+            foreach (var key in base.Keys.Except(mutableStorage.Keys))
                 base.Remove(key);
         }
 
@@ -194,7 +192,8 @@ namespace DBCD
             storage.Clear();
         }
 
-        public DBCDRow ConstructRow(int index) {
+        public DBCDRow ConstructRow(int index)
+        {
             T raw = new();
             var fields = typeof(T).GetFields();
             // Array Fields need to be initialized to fill their length
