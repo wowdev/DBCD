@@ -180,6 +180,7 @@ namespace DBCD
 
         public void Save(string filename)
         {
+            storage.Clear();
 #if NETSTANDARD2_0
             var sortedDictionary = new SortedDictionary<int, DBCDRow>(this);
             foreach (var record in sortedDictionary)
@@ -189,7 +190,6 @@ namespace DBCD
                 storage.Add(id, record.AsType<T>());
 #endif
             storage.Save(filename);
-            storage.Clear();
         }
 
         public DBCDRow ConstructRow(int index)
