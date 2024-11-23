@@ -70,7 +70,12 @@ namespace DBCD.IO.Readers
             for (int i = 0; i < fields.Length; i++)
             {
                 FieldCache<T> info = fields[i];
-                if (info.IndexMapField)
+
+                /* 
+                 * Note: While WDB5 was introduced in build 21479, idFieldIndex wasn't added to it until build 21737.
+                 * This means that the check below here will likely fail for the ~6 builds between those.
+                 */
+                if (i == m_reader.IdFieldIndex)
                 {
                     if (Id != -1)
                         indexFieldOffSet++;
@@ -185,7 +190,7 @@ namespace DBCD.IO.Readers
                 Locale = reader.ReadInt32();
                 int copyTableSize = reader.ReadInt32();
                 Flags = (DB2Flags)reader.ReadUInt16();
-                IdFieldIndex = reader.ReadUInt16();
+                IdFieldIndex = reader.ReadUInt16(); // Only in build 21737+, what happens in the ~6 builds between 21479 and 21737?
 
                 // field meta data
                 Meta = reader.ReadArray<FieldMetaData>(FieldsCount);

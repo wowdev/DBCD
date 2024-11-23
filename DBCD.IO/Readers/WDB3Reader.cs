@@ -68,7 +68,7 @@ namespace DBCD.IO.Readers
             for (int i = 0; i < fields.Length; i++)
             {
                 FieldCache<T> info = fields[i];
-                if (fields[i].IndexMapField)
+                if (info.IndexMapField)
                 {
                     if (Id != -1)
                         indexFieldOffSet++;
