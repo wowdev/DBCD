@@ -113,6 +113,11 @@ namespace DBCD
                     AddAttribute<RelationAttribute>(field, metaDataFieldType, fieldDefinition.isNonInline);
                 }
 
+                if (!string.IsNullOrEmpty(columnDefinition.foreignTable))
+                {
+                    AddAttribute<ForeignReferenceAttribute>(field, columnDefinition.foreignTable, columnDefinition.foreignColumn);
+                }
+
                 if (isLocalisedString)
                 {
                     if (localiseStrings)
