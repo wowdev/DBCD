@@ -77,6 +77,7 @@ namespace DBCD
             var columns = new List<string>(fields.Length);
             bool localiseStrings = locale != Locale.None;
 
+            var metadataIndex = 0;
             foreach (var fieldDefinition in fields)
             {
                 var columnDefinition = databaseDefinition.columnDefinitions[fieldDefinition.name];
@@ -100,6 +101,15 @@ namespace DBCD
                 if (fieldDefinition.isID)
                 {
                     AddAttribute<IndexAttribute>(field, fieldDefinition.isNonInline);
+                } 
+                
+                if (!fieldDefinition.isNonInline)
+                {
+                    if (metadataIndex < dbcReader.ColumnMeta.Length)
+                    {
+                        AddAttribute<SizeInBitsAttribute>(field, dbcReader.ColumnMeta[metadataIndex].Size);
+                    }
+                    metadataIndex++;
                 }
 
                 if (fieldDefinition.arrLength > 1)
