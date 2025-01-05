@@ -28,12 +28,13 @@ jobs:
     # Install the .NET SDK indicated in the global.json file
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
-
+      with:
+        dotnet-version: 9.x.x
     # Create the NuGet package in the folder from the environment variable NuGetDirectory
     - run: dotnet pack --configuration Release --output ${{ env.NuGetDirectory }} /p:ContinuousIntegrationBuild=true 
 
     # Publish the NuGet package as an artifact, so they can be used in the following jobs
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4.4.0
       with:
         name: nuget
         if-no-files-found: error
@@ -47,9 +48,11 @@ jobs:
       # Install the .NET SDK indicated in the global.json file
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.x.x
 
       # Download the NuGet package created in the previous job
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: nuget
           path: ${{ env.NuGetDirectory }}
@@ -70,6 +73,8 @@ jobs:
     - uses: actions/checkout@v3
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.x.x
     - name: Run tests
       run: dotnet test --configuration Release
 
@@ -82,14 +87,15 @@ jobs:
     needs: [ validate_nuget, run_test ]
     steps:
       # Download the NuGet package created in the previous job
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: nuget
           path: ${{ env.NuGetDirectory }}
 
-      # Install the .NET SDK indicated in the global.json file
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.x.x
 
       # Publish all NuGet packages to NuGet.org
       # Use --skip-duplicate to prevent errors if a package with the same version already exists.

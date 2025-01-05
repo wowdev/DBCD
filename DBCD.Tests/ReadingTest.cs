@@ -12,6 +12,24 @@ namespace DBCD.Tests
         static readonly WagoDBCProvider wagoDBCProvider = new();
 
         [TestMethod]
+        public void TestWDB5ReadingNoIndexData()
+        {
+            DBCD dbcd = new(wagoDBCProvider, githubDBDProvider);
+            IDBCDStorage storage = dbcd.Load("Achievement_Category", "7.1.0.23222");
+            var row = storage[1];
+            Assert.AreEqual("Statistics", row["Name_lang"]);
+        }
+
+        [TestMethod]
+        public void TestWDB5Reading()
+        {
+            DBCD dbcd = new(wagoDBCProvider, githubDBDProvider);
+            IDBCDStorage storage = dbcd.Load("Map", "7.1.0.23222");
+            var row = storage[451];
+            Assert.AreEqual("development", row["Directory"]);
+        }
+
+        [TestMethod]
         public void TestWDC1Reading()
         {
             DBCD dbcd = new(wagoDBCProvider, githubDBDProvider);
