@@ -105,7 +105,7 @@ namespace DBCD
                 
                 if (!fieldDefinition.isNonInline)
                 {
-                    if (metadataIndex < dbcReader.ColumnMeta.Length)
+                    if (dbcReader.ColumnMeta != null && metadataIndex < dbcReader.ColumnMeta.Length)
                     {
                         AddAttribute<SizeInBitsAttribute>(field, dbcReader.ColumnMeta[metadataIndex].Size);
                     }
