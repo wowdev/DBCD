@@ -56,27 +56,31 @@ namespace DBCD.IO.Writers
 
                 int fieldIndex = i - indexFieldOffSet;
 
-                // relationship field, used for faster lookup on IDs
-                if (info.IsNonInlineRelation)
+                // reference data field
+                if (fieldIndex >= m_writer.Meta.Length)
                 {
                     m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+                    continue;
+                }
+
+                // relationship field, used for faster lookup on IDs
+                if (info.IsRelation)
+                    m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+
+                
+                if (info.IsArray)
+                {
+                    if (arrayWriters.TryGetValue(info.FieldType, out var writer))
+                        writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], (Array)info.Getter(row));
+                    else
+                        throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else
                 {
-                    if (info.IsArray)
-                    {
-                        if (arrayWriters.TryGetValue(info.FieldType, out var writer))
-                            writer(bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], (Array)info.Getter(row));
-                        else
-                            throw new Exception("Unhandled array type: " + typeof(T).Name);
-                    }
+                    if (simpleWriters.TryGetValue(info.FieldType, out var writer))
+                        writer(id, bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], info.Getter(row));
                     else
-                    {
-                        if (simpleWriters.TryGetValue(info.FieldType, out var writer))
-                            writer(id, bitWriter, m_writer, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], info.Getter(row));
-                        else
-                            throw new Exception("Unhandled field type: " + typeof(T).Name);
-                    }
+                        throw new Exception("Unhandled field type: " + typeof(T).Name);
                 }
             }
 
