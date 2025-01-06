@@ -11,6 +11,8 @@ namespace DBCD.Tests
         static GithubDBDProvider githubDBDProvider = new(true);
         static readonly WagoDBCProvider wagoDBCProvider = new();
 
+        // Disabled as 7.1.0 definitions are not yet generally available
+        /*
         [TestMethod]
         public void TestWDB5ReadingNoIndexData()
         {
@@ -19,7 +21,7 @@ namespace DBCD.Tests
             var row = storage[1];
             Assert.AreEqual("Statistics", row["Name_lang"]);
         }
-
+        */
         [TestMethod]
         public void TestWDB5Reading()
         {
