@@ -5,6 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+
+[assembly:InternalsVisibleTo("DBCD")]
 
 namespace DBCD.IO
 {
@@ -23,6 +26,7 @@ namespace DBCD.IO
         public uint LayoutHash => _reader.LayoutHash;
         public int IdFieldIndex => _reader.IdFieldIndex;
         public DB2Flags Flags => _reader.Flags;
+        internal ColumnMetaData[] ColumnMeta => _reader.ColumnMeta;
         #endregion
 
         public DBParser(string fileName) : this(File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read)) { }

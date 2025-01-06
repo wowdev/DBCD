@@ -107,6 +107,7 @@ namespace DBCD
     public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>, IDictionary<int, DBCDRow>
     {
         string[] AvailableColumns { get; }
+        uint LayoutHash { get;  }
 
         DBCDRow ConstructRow(int index);
 
@@ -129,6 +130,7 @@ namespace DBCD
         private readonly DBParser parser;
 
         string[] IDBCDStorage.AvailableColumns => this.info.availableColumns;
+        public uint LayoutHash => this.storage.LayoutHash;
         public override string ToString() => $"{this.info.tableName}";
 
         public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBParser(stream), info) { }
@@ -145,6 +147,7 @@ namespace DBCD
             foreach (var record in storage)
                 base.Add(record.Key, new DBCDRow(record.Key, record.Value, fieldAccessor));
         }
+
 
         public void ApplyingHotfixes(HotfixReader hotfixReader)
         {
