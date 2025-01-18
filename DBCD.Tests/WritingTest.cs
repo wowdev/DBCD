@@ -67,6 +67,21 @@ namespace DBCD.Tests
         }
 
         [TestMethod]
+        public void TestWritingNewRowDb2WithArrayOfStringsField()
+        {
+            DBCD dbcd = new(wagoDBCProvider, githubDBDProvider);
+            IDBCDStorage storage = dbcd.Load("BattlePetEffectProperties", "9.2.7.45745");
+
+            storage.Add(10, storage.ConstructRow(10));
+            storage.Save(Path.Join(OutputPath, "BattlePetEffectProperties.db2"));
+
+            DBCD localDbcd = new(new FilesystemDBCProvider(OutputPath), githubDBDProvider);
+            IDBCDStorage outputStorage = localDbcd.Load("BattlePetEffectProperties", "9.2.7.45745");
+
+            Assert.AreEqual(134, outputStorage.Count);
+        }
+
+        [TestMethod]
         public void TestSavingSameStorageTwice()
         {
             DBCD dbcd = new(wagoDBCProvider, githubDBDProvider);
