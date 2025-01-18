@@ -204,10 +204,19 @@ namespace DBCD
             foreach (var arrayField in arrayFields)
             {
                 var count = arrayField.GetCustomAttribute<CardinalityAttribute>().Count;
-                Array rowRecords = Array.CreateInstance(arrayField.FieldType.GetElementType(), count);
+                var elementType = arrayField.FieldType.GetElementType();
+                var isStringField = elementType == typeof(string);
+
+                Array rowRecords = Array.CreateInstance(elementType, count);
                 for (var i = 0; i < count; i++)
                 {
-                    rowRecords.SetValue(Activator.CreateInstance(arrayField.FieldType.GetElementType()), i);
+                    if (isStringField)
+                    {
+                        rowRecords.SetValue(string.Empty, i);
+                    } else
+                    {
+                        rowRecords.SetValue(Activator.CreateInstance(elementType), i);
+                    }
                 }
                 arrayField.SetValue(raw, rowRecords);
             }
