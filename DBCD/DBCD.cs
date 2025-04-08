@@ -33,6 +33,7 @@ namespace DBCD
         /// </summary>
         /// <param name="dbcProvider">The IDBCProvider for DBC files.</param>
         /// <param name="bdbdStream">The stream for a BDBD (Binary DBD) file to load all definitions from.</param>
+        /// <remarks>WARNING: The usage of a BDBD file for supplying definitions is still experimental and currently has little to no advantages.</remarks>
         public DBCD(IDBCProvider dbcProvider, Stream bdbdStream)
         {
             this.dbcProvider = dbcProvider;
