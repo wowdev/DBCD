@@ -82,6 +82,16 @@ namespace DBCD.Tests
         }
 
         [TestMethod]
+        public void TestWDC5ReadingBDBDNoCache()
+        {
+            DBCD dbcd = new(wagoDBCProvider, GithubBDBDProvider.GetStream(true));
+            IDBCDStorage storage = dbcd.Load("Map", "10.2.5.52432");
+
+            var row = storage[2574];
+            Assert.AreEqual("Dragon Isles", row["MapName_lang"]);
+        }
+
+        [TestMethod]
         public void TestSparseReading()
         {
             DBCD dbcd = new(wagoDBCProvider, githubDBDProvider);
@@ -110,7 +120,7 @@ namespace DBCD.Tests
 
             foreach (var section in storage.GetEncryptedSections())
             {
-                System.Console.WriteLine($"Found encrypted section encrypted with key {section.Key} containing {section.Value} rows");
+                Console.WriteLine($"Found encrypted section encrypted with key {section.Key} containing {section.Value} rows");
             }
         }
 

@@ -35,16 +35,10 @@ namespace DBCD
             this.locale = locale;
         }
 
-        internal Tuple<Type, DBCDInfo> Build(DBParser dbcReader, Stream dbd, string name, string build)
+        internal Tuple<Type, DBCDInfo> Build(DBParser dbcReader, Structs.DBDefinition databaseDefinition, string name, string build)
         {
-            var dbdReader = new DBDReader();
-
             if (name == null)
-            {
                 name = Guid.NewGuid().ToString();
-            }
-
-            var databaseDefinition = dbdReader.Read(dbd);
 
             Structs.VersionDefinitions? versionDefinition = null;
 
