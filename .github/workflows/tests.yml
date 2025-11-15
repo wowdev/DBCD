@@ -13,7 +13,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.x.x
+        dotnet-version: 10.x.x
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
