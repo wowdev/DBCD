@@ -26,7 +26,7 @@ namespace DBCD
 
         internal DBCDBuilder(Locale locale = Locale.None)
         {
-            var assemblyName = new AssemblyName("DBCDDefinitons");
+            var assemblyName = new AssemblyName("DBCDDefinitions");
             var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             var moduleBuilder = assemblyBuilder.DefineDynamicModule(assemblyName.Name);
 
