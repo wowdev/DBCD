@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
@@ -6,6 +7,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace DBCD.IO
@@ -50,10 +52,10 @@ namespace DBCD.IO
 
         public static T Read<T>(this BinaryReader reader) where T : struct
         {
-            byte[] result = reader.ReadBytes(Unsafe.SizeOf<T>());
+            Span<byte> result = stackalloc byte[Unsafe.SizeOf<T>()];
+            _ = reader.Read(result);
             return Unsafe.ReadUnaligned<T>(ref result[0]);
         }
-
 
         /// <summary>
         /// Reads a NUL-separated string table from the current stream
@@ -64,45 +66,82 @@ namespace DBCD.IO
         /// <param name="baseOffset">Base offset to use for the string table keys</param>
         public static Dictionary<long, string> ReadStringTable(this BinaryReader reader, int stringTableSize, int baseOffset = 0, bool usePos = false)
         {
-            var StringTable = new Dictionary<long, string>(stringTableSize / 0x20);
+            if (stringTableSize == 0)
+                return [];
 
-            if(stringTableSize == 0)
-                return StringTable;
+            var stringTable = new Dictionary<long, string>(stringTableSize / 0x20);
 
-            var curOfs = 0;
-            var decoded = Encoding.UTF8.GetString(reader.ReadBytes(stringTableSize));
-            foreach (var str in decoded.Split('\0'))
+            byte[] stringTableBytes = ArrayPool<byte>.Shared.Rent(stringTableSize); // may return a lager buffer than requested
+            Span<byte> bufferSpan = stringTableBytes.AsSpan(0, stringTableSize);
+            _ = reader.Read(bufferSpan);
+
+            try
             {
-                if (curOfs == stringTableSize)
-                    break;
+                int start = 0;
+                for (int i = 0; i < bufferSpan.Length; ++i)
+                {
+                    if (stringTableBytes[i] == 0)
+                    {
+                        string str = Encoding.UTF8.GetString(bufferSpan.Slice(start, i - start));
+                        if (usePos)
+                            stringTable[reader.BaseStream.Position - stringTableSize + start] = str;
+                        else
+                            stringTable[baseOffset + start] = str;
 
-                if(usePos)
-                    StringTable[(reader.BaseStream.Position - stringTableSize) + curOfs] = str;
-                else
-                    StringTable[baseOffset + curOfs] = str;
+                        start = i + 1;
+                    }
+                }
 
-                curOfs += Encoding.UTF8.GetByteCount(str) + 1;
+                // Trailing string
+                if (start < bufferSpan.Length)
+                {
+                    string str = Encoding.UTF8.GetString(bufferSpan.Slice(start));
+                    if (usePos)
+                        stringTable[reader.BaseStream.Position - stringTableSize + start] = str;
+                    else
+                        stringTable[baseOffset + start] = str;
+                }
+
+                return stringTable;
             }
-
-            return StringTable;
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(stringTableBytes);
+            }
         }
 
         public static T[] ReadArray<T>(this BinaryReader reader) where T : struct
         {
             int numBytes = (int)reader.ReadInt64();
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(numBytes); // may return a lager buffer than requested
+            Span<byte> result = buffer.AsSpan(0, numBytes);
 
-            byte[] result = reader.ReadBytes(numBytes);
-
-            reader.BaseStream.Position += (0 - numBytes) & 0x07;
-            return result.CopyTo<T>();
+            try
+            {
+                _ = reader.Read(result);
+                reader.BaseStream.Position += (0 - numBytes) & 0x07;
+                return MemoryMarshal.Cast<byte, T>(result).ToArray();
+            }
+            finally
+            { 
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
 
         public static T[] ReadArray<T>(this BinaryReader reader, int size) where T : struct
         {
             int numBytes = Unsafe.SizeOf<T>() * size;
-
-            byte[] result = reader.ReadBytes(numBytes);
-            return result.CopyTo<T>();
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(numBytes); // may return a lager buffer than requested
+            Span<byte> result = buffer.AsSpan(0, numBytes);
+            try
+            {
+                _ = reader.Read(result);
+                return MemoryMarshal.Cast<byte, T>(result).ToArray();
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
 
         public static unsafe T[] CopyTo<T>(this byte[] src) where T : struct
@@ -171,7 +210,7 @@ namespace DBCD.IO
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string ReadCString(this BinaryReader reader, Encoding encoding)
         {
-            var bytes = new System.Collections.Generic.List<byte>(0x20);
+            var bytes = new List<byte>(0x20);
             byte b;
             while ((b = reader.ReadByte()) != 0)
                 bytes.Add(b);

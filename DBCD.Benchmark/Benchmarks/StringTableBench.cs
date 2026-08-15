@@ -1,4 +1,5 @@
-﻿using BenchmarkDotNet.Attributes;
+﻿using System.Buffers;
+using BenchmarkDotNet.Attributes;
 using System.Text;
 
 namespace DBCD.Benchmark.Benchmarks
@@ -50,27 +51,48 @@ namespace DBCD.Benchmark.Benchmarks
 
         public static Dictionary<long, string> ReadStringTable(this BinaryReader reader, int stringTableSize, int baseOffset = 0, bool usePos = false)
         {
-            var StringTable = new Dictionary<long, string>(stringTableSize / 0x20);
-
             if (stringTableSize == 0)
-                return StringTable;
+                return [];
 
-            var curOfs = 0;
-            var decoded = Encoding.UTF8.GetString(reader.ReadBytes(stringTableSize));
-            foreach (var str in decoded.Split('\0'))
+            var stringTable = new Dictionary<long, string>(stringTableSize / 0x20);
+
+            byte[] stringTableBytes = ArrayPool<byte>.Shared.Rent(stringTableSize); // may return a lager buffer than requested
+            Span<byte> bufferSpan = stringTableBytes.AsSpan(0, stringTableSize);
+            _ = reader.Read(bufferSpan);
+
+            try
             {
-                if (curOfs == stringTableSize)
-                    break;
+                int start = 0;
+                for (int i = 0; i < bufferSpan.Length; ++i)
+                {
+                    if (stringTableBytes[i] == 0)
+                    {
+                        string str = Encoding.UTF8.GetString(bufferSpan.Slice(start, i - start));
+                        if (usePos)
+                            stringTable[reader.BaseStream.Position - stringTableSize + start] = str;
+                        else
+                            stringTable[baseOffset + start] = str;
 
-                if (usePos)
-                    StringTable[(reader.BaseStream.Position - stringTableSize) + curOfs] = str;
-                else
-                    StringTable[baseOffset + curOfs] = str;
+                        start = i + 1;
+                    }
+                }
 
-                curOfs += Encoding.UTF8.GetByteCount(str) + 1;
+                // Trailing string
+                if (start < bufferSpan.Length)
+                {
+                    string str = Encoding.UTF8.GetString(bufferSpan.Slice(start));
+                    if (usePos)
+                        stringTable[reader.BaseStream.Position - stringTableSize + start] = str;
+                    else
+                        stringTable[baseOffset + start] = str;
+                }
+
+                return stringTable;
             }
-
-            return StringTable;
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(stringTableBytes);
+            }
         }
     }
 }
