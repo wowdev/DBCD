@@ -287,8 +287,8 @@ namespace DBCD.IO.Readers
                 if (sectionsCount > 1)
                     throw new Exception("WDC2 only supports 1 section");
 
-                var sections = (sectionsCount == 0) ? new List<SectionHeader>() : reader.ReadArray<SectionHeader>(sectionsCount).ToList();
-                this.m_sections = sections.OfType<IEncryptableDatabaseSection>().ToList();
+                var sections = (sectionsCount == 0) ? new List<SectionHeader>() : new List<SectionHeader>(reader.ReadArray<SectionHeader>(sectionsCount));
+                this.m_sections = sections.Cast<IEncryptableDatabaseSection>().ToList();
 
                 // field meta data
                 Meta = reader.ReadArray<FieldMetaData>(FieldsCount);

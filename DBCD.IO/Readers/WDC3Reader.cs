@@ -281,8 +281,8 @@ namespace DBCD.IO.Readers
                 int palletDataSize      = reader.ReadInt32();   // in bytes, sizeof(DBC2PalletValue) == 4
                 int sectionsCount       = reader.ReadInt32();
 
-                var sections = (sectionsCount == 0) ? new List<SectionHeaderWDC3>() : reader.ReadArray<SectionHeaderWDC3>(sectionsCount).ToList();
-                m_sections = sections.OfType<IEncryptableDatabaseSection>().ToList();
+                var sections = (sectionsCount == 0) ? new List<SectionHeaderWDC3>() : new List<SectionHeaderWDC3>(reader.ReadArray<SectionHeaderWDC3>(sectionsCount));
+                m_sections = sections.Cast<IEncryptableDatabaseSection>().ToList();
 
                 // field meta data
                 Meta = reader.ReadArray<FieldMetaData>(FieldsCount);
@@ -406,7 +406,7 @@ namespace DBCD.IO.Readers
                         if (TableHash == 145293629)
                             reader.BaseStream.Position += 4 * section.OffsetMapIDCount;
 
-                        SparseEntries = reader.ReadArray<SparseEntry>(section.OffsetMapIDCount).ToList();
+                        SparseEntries = new List<SparseEntry>(reader.ReadArray<SparseEntry>(section.OffsetMapIDCount));
                     }
 
                     // reference data
