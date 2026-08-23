@@ -52,7 +52,6 @@ namespace DBCD.IO.Readers
             [typeof(float[])] = (data, cardinality) => GetFieldValueArray<float>(data, cardinality),
             [typeof(int[])] = (data, cardinality) => GetFieldValueArray<int>(data, cardinality),
             [typeof(uint[])] = (data, cardinality) => GetFieldValueArray<uint>(data, cardinality),
-            [typeof(ulong[])] = (data, cardinality) => GetFieldValueArray<ulong>(data, cardinality),
             [typeof(ushort[])] = (data, cardinality) => GetFieldValueArray<ushort>(data, cardinality),
             [typeof(short[])] = (data, cardinality) => GetFieldValueArray<short>(data, cardinality),
             [typeof(byte[])] = (data, cardinality) => GetFieldValueArray<byte>(data, cardinality),

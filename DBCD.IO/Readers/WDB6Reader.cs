@@ -56,7 +56,6 @@ namespace DBCD.IO.Readers
             [typeof(float[])] = (id, data, fieldMeta, commonData, stringTable, cardinality) => GetFieldValueArray<float>(id, data, fieldMeta, commonData, cardinality),
             [typeof(int[])] = (id, data, fieldMeta, commonData, stringTable, cardinality) => GetFieldValueArray<int>(id, data, fieldMeta, commonData, cardinality),
             [typeof(uint[])] = (id, data, fieldMeta, commonData, stringTable, cardinality) => GetFieldValueArray<uint>(id, data, fieldMeta, commonData, cardinality),
-            [typeof(ulong[])] = (id, data, fieldMeta, commonData, stringTable, cardinality) => GetFieldValueArray<ulong>(id, data, fieldMeta, commonData, cardinality),
             [typeof(ushort[])] = (id, data, fieldMeta, commonData, stringTable, cardinality) => GetFieldValueArray<ushort>(id, data, fieldMeta, commonData, cardinality),
             [typeof(short[])] = (id, data, fieldMeta, commonData, stringTable, cardinality) => GetFieldValueArray<short>(id, data, fieldMeta, commonData, cardinality),
             [typeof(byte[])] = (id, data, fieldMeta, commonData, stringTable, cardinality) => GetFieldValueArray<byte>(id, data, fieldMeta, commonData, cardinality),
