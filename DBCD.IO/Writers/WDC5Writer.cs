@@ -358,13 +358,14 @@ namespace DBCD.IO.Writers
 
                 // pallet data
                 for (int i = 0; i < ColumnMeta.Length; i++)
-                {
-                    if (ColumnMeta[i].CompressionType == CompressionType.Pallet || ColumnMeta[i].CompressionType == CompressionType.PalletArray)
-                    {
+                    if (ColumnMeta[i].CompressionType == CompressionType.Pallet)
                         foreach (var palletData in PalletData[i])
                             writer.WriteArray(palletData);
-                    }
-                }
+
+                for (int i = 0; i < ColumnMeta.Length; i++)
+                    if (ColumnMeta[i].CompressionType == CompressionType.PalletArray)
+                        foreach (var palletData in PalletData[i])
+                            writer.WriteArray(palletData);
 
                 // common data
                 for (int i = 0; i < ColumnMeta.Length; i++)

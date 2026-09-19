@@ -301,12 +301,12 @@ namespace DBCD.IO.Readers
                 // pallet data
                 PalletData = new Value32[ColumnMeta.Length][];
                 for (int i = 0; i < ColumnMeta.Length; i++)
-                {
-                    if (ColumnMeta[i].CompressionType == CompressionType.Pallet || ColumnMeta[i].CompressionType == CompressionType.PalletArray)
-                    {
+                    if (ColumnMeta[i].CompressionType == CompressionType.Pallet)
                         PalletData[i] = reader.ReadArray<Value32>((int)ColumnMeta[i].AdditionalDataSize / 4);
-                    }
-                }
+
+                for (int i = 0; i < ColumnMeta.Length; i++)
+                    if (ColumnMeta[i].CompressionType == CompressionType.PalletArray)
+                        PalletData[i] = reader.ReadArray<Value32>((int)ColumnMeta[i].AdditionalDataSize / 4);
 
                 // common data
                 CommonData = new Dictionary<int, Value32>[ColumnMeta.Length];

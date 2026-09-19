@@ -242,5 +242,18 @@ namespace DBCD.Tests
             // Throws an exception because the Enum Member is not in the Enum
             Assert.ThrowsException<KeyNotFoundException>(() => spellMiscRow.HasFlag("Attributes", 1, "HIDDEN_CLIENTSIDE"));
         }
+
+        [TestMethod]
+        public void TestPalletReadingOrder()
+        {
+            DBCD dbcd = new(wagoDBCProvider, githubDBDProvider);
+            IDBCDStorage storage = dbcd.Load("PlayerCondition", "12.1.5.69848");
+
+            // These surrounding columns have incorrect values if pallet reading is in the wrong order
+            var row = storage[52534];
+            Assert.AreEqual((sbyte)0, row["MinPVPRank"]);
+            Assert.AreEqual((sbyte)0, row["MaxPVPRank"]);
+            Assert.AreEqual(0, row["ContentTuningID"]);
+        }
     }
 }
