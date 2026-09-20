@@ -240,7 +240,7 @@ namespace DBCD.Tests
             Assert.AreEqual(spellMiscRow.HasFlag("Attributes", 0, "HIDDEN_CLIENTSIDE"), true);
 
             // Throws an exception because the Enum Member is not in the Enum
-            Assert.ThrowsException<KeyNotFoundException>(() => spellMiscRow.HasFlag("Attributes", 1, "HIDDEN_CLIENTSIDE"));
+            Assert.Throws<KeyNotFoundException>(() => spellMiscRow.HasFlag("Attributes", 1, "HIDDEN_CLIENTSIDE"));
         }
 
         [TestMethod]
