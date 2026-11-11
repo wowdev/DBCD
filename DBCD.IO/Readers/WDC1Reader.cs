@@ -42,18 +42,28 @@ namespace DBCD.IO.Readers
             Id = id;
         }
 
-        private static Dictionary<Type, Func<int, BitReader, FieldMetaData, ColumnMetaData, Value32[], Dictionary<int, Value32>, Dictionary<long, string>, BaseReader, object>> simpleReaders = new Dictionary<Type, Func<int, BitReader, FieldMetaData, ColumnMetaData, Value32[], Dictionary<int, Value32>, Dictionary<long, string>, BaseReader, object>>
+        private static class SingleReaderCache<T>
         {
-            [typeof(long)] = (id, data, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => GetFieldValue<long>(id, data, fieldMeta, columnMeta, palletData, commonData),
-            [typeof(float)] = (id, data, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => GetFieldValue<float>(id, data, fieldMeta, columnMeta, palletData, commonData),
-            [typeof(int)] = (id, data, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => GetFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData),
-            [typeof(uint)] = (id, data, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => GetFieldValue<uint>(id, data, fieldMeta, columnMeta, palletData, commonData),
-            [typeof(short)] = (id, data, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => GetFieldValue<short>(id, data, fieldMeta, columnMeta, palletData, commonData),
-            [typeof(ushort)] = (id, data, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => GetFieldValue<ushort>(id, data, fieldMeta, columnMeta, palletData, commonData),
-            [typeof(sbyte)] = (id, data, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => GetFieldValue<sbyte>(id, data, fieldMeta, columnMeta, palletData, commonData),
-            [typeof(byte)] = (id, data, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => GetFieldValue<byte>(id, data, fieldMeta, columnMeta, palletData, commonData),
-            [typeof(string)] = (id, data, fieldMeta, columnMeta, palletData, commonData, stringTable, header) => header.Flags.HasFlagExt(DB2Flags.Sparse) ? data.ReadCString() : stringTable[GetFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData)],
-        };
+            public static readonly Dictionary<Type, Action<T, FieldCache<T>, int, BitReader, FieldMetaData, ColumnMetaData, Value32[], Dictionary<int, Value32>, Dictionary<long, string>, BaseReader>> Readers = new()
+            {
+                { typeof(ulong), (record, info, id, data, fieldMeta, columnMeta, palletData, commonData, _, _) => info.Setter.SetValue(record, GetFieldValue<ulong>(id, data, fieldMeta, columnMeta, palletData, commonData)) },
+                { typeof(long), (record, info, id, data, fieldMeta, columnMeta, palletData, commonData, _, _) => info.Setter.SetValue(record, GetFieldValue<long>(id, data, fieldMeta, columnMeta, palletData, commonData)) },
+                { typeof(float), (record, info, id, data, fieldMeta, columnMeta, palletData, commonData, _, _) => info.Setter.SetValue(record, GetFieldValue<float>(id, data, fieldMeta, columnMeta, palletData, commonData)) },
+                { typeof(uint), (record, info, id, data, fieldMeta, columnMeta, palletData, commonData, _, _) => info.Setter.SetValue(record, GetFieldValue<uint>(id, data, fieldMeta, columnMeta, palletData, commonData)) },
+                { typeof(int), (record, info, id, data, fieldMeta, columnMeta, palletData, commonData, _, _) => info.Setter.SetValue(record, GetFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData)) },
+                { typeof(ushort), (record, info, id, data, fieldMeta, columnMeta, palletData, commonData, _, _) => info.Setter.SetValue(record, GetFieldValue<ushort>(id, data, fieldMeta, columnMeta, palletData, commonData)) },
+                { typeof(short), (record, info, id, data, fieldMeta, columnMeta, palletData, commonData, _, _) => info.Setter.SetValue(record, GetFieldValue<short>(id, data, fieldMeta, columnMeta, palletData, commonData)) },
+                { typeof(byte), (record, info, id, data, fieldMeta, columnMeta, palletData, commonData, _, _) => info.Setter.SetValue(record, GetFieldValue<byte>(id, data, fieldMeta, columnMeta, palletData, commonData)) },
+                { typeof(sbyte), (record, info, id, data, fieldMeta, columnMeta, palletData, commonData, _, _) => info.Setter.SetValue(record, GetFieldValue<sbyte>(id, data, fieldMeta, columnMeta, palletData, commonData)) },
+                { typeof(string), (record, info, id, data, fieldMeta, columnMeta, palletData, commonData, stringTable, header) =>
+                    {
+                        string stringValue = header.Flags.HasFlagExt(DB2Flags.Sparse) ?
+                            data.ReadCString() : stringTable[GetFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData)];
+                        info.Setter.SetObject(record, stringValue);
+                    }
+                }
+            };
+        }
 
         private static Dictionary<Type, Func<BitReader, FieldMetaData, ColumnMetaData, Value32[], Dictionary<int, Value32>, Dictionary<long, string>, object>> arrayReaders = new Dictionary<Type, Func<BitReader, FieldMetaData, ColumnMetaData, Value32[], Dictionary<int, Value32>, Dictionary<long, string>, object>>
         {
@@ -86,35 +96,32 @@ namespace DBCD.IO.Readers
                     else
                         Id = GetFieldValue<int>(0, Data, m_fieldMeta[i], ColumnMeta[i], PalletData[i], CommonData[i]);
 
-                    info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
+                    if (info.FieldType == typeof(int))
+                        info.Setter.SetValue(entry, Id);
+                    else
+                        info.Setter.SetObject(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
                 }
 
-                object value = null;
                 int fieldIndex = i - indexFieldOffSet;
 
                 if (fieldIndex >= m_reader.Meta.Length)
                 {
-                    info.Setter(entry, Convert.ChangeType(m_refID, info.FieldType));
+                    info.Setter.SetObject(entry, Convert.ChangeType(m_refID, info.FieldType));
                     continue;
                 }
 
                 if (info.IsArray)
                 {
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Data, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable);
+                        info.Setter.SetObject(entry, reader(Data, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable));
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
+                else if (SingleReaderCache<T>.Readers.TryGetValue(info.FieldType, out var reader))
+                    reader(entry, info, Id, Data, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable, m_reader);
                 else
-                {
-                    if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Id, Data, m_fieldMeta[fieldIndex], ColumnMeta[fieldIndex], PalletData[fieldIndex], CommonData[fieldIndex], m_reader.StringTable, m_reader);
-                    else
-                        throw new Exception("Unhandled field type: " + typeof(T).Name);
-                }
-
-                info.Setter(entry, value);
+                    throw new Exception("Unhandled field type: " + typeof(T).Name);
             }
         }
 
@@ -195,7 +202,7 @@ namespace DBCD.IO.Readers
 
             throw new Exception(string.Format("Unexpected compression type {0}", columnMeta.CompressionType));
         }
-
+        
         public IDBRow Clone()
         {
             return (IDBRow)MemberwiseClone();

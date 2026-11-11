@@ -30,19 +30,29 @@ namespace DBCD.IO.Readers
             m_dataPosition = Data.Position;
         }
 
-        private static Dictionary<Type, Func<BitReader, Dictionary<long, string>, BaseReader, object>> simpleReaders = new Dictionary<Type, Func<BitReader, Dictionary<long, string>, BaseReader, object>>
+        private static class SingleReaderCache<T>
         {
-            [typeof(long)] = (data, stringTable, header) => GetFieldValue<long>(data),
-            [typeof(float)] = (data, stringTable, header) => GetFieldValue<float>(data),
-            [typeof(int)] = (data, stringTable, header) => GetFieldValue<int>(data),
-            [typeof(uint)] = (data, stringTable, header) => GetFieldValue<uint>(data),
-            [typeof(short)] = (data, stringTable, header) => GetFieldValue<short>(data),
-            [typeof(ushort)] = (data, stringTable, header) => GetFieldValue<ushort>(data),
-            [typeof(sbyte)] = (data, stringTable, header) => GetFieldValue<sbyte>(data),
-            [typeof(byte)] = (data, stringTable, header) => GetFieldValue<byte>(data),
-            [typeof(string)] = (data, stringTable, header) => header.Flags.HasFlagExt(DB2Flags.Sparse) ? data.ReadCString() : stringTable[GetFieldValue<int>(data)],
-        };
-
+            public static readonly Dictionary<Type, Action<T, FieldCache<T>, BitReader, Dictionary<long, string>, BaseReader>> Readers = new()
+            {
+                { typeof(ulong), (record, info, data, _, _) => info.Setter.SetValue(record, GetFieldValue<ulong>(data)) },
+                { typeof(long), (record, info, data, _, _) => info.Setter.SetValue(record, GetFieldValue<long>(data)) },
+                { typeof(float), (record, info, data, _, _) => info.Setter.SetValue(record, GetFieldValue<float>(data)) },
+                { typeof(uint), (record, info, data, _, _) => info.Setter.SetValue(record, GetFieldValue<uint>(data)) },
+                { typeof(int), (record, info, data, _, _) => info.Setter.SetValue(record, GetFieldValue<int>(data)) },
+                { typeof(ushort), (record, info, data, _, _) => info.Setter.SetValue(record, GetFieldValue<ushort>(data)) },
+                { typeof(short), (record, info, data, _, _) => info.Setter.SetValue(record, GetFieldValue<short>(data)) },
+                { typeof(byte), (record, info, data, _, _) => info.Setter.SetValue(record, GetFieldValue<byte>(data)) },
+                { typeof(sbyte), (record, info, data, _, _) => info.Setter.SetValue(record, GetFieldValue<sbyte>(data)) },
+                { typeof(string), (record, info, data, stringTable, header) =>
+                    {
+                        string stringValue = header.Flags.HasFlagExt(DB2Flags.Sparse) ? 
+                            data.ReadCString() : stringTable[GetFieldValue<int>(data)];
+                        info.Setter.SetObject(record, stringValue);
+                    }
+                }
+            };
+        }
+        
         private static Dictionary<Type, Func<BitReader, Dictionary<long, string>, int, object>> arrayReaders = new Dictionary<Type, Func<BitReader, Dictionary<long, string>, int, object>>
         {
             [typeof(ulong[])] = (data, stringTable, cardinality) => GetFieldValueArray<ulong>(data, cardinality),
@@ -74,36 +84,33 @@ namespace DBCD.IO.Readers
                     else
                         Id = GetFieldValue<int>(Data);
 
-                    info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
+                    if (info.FieldType == typeof(int))
+                        info.Setter.SetValue(entry, Id);
+                    else
+                        info.Setter.SetObject(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
                 }
 
-                object value = null;
                 int fieldIndex = i - indexFieldOffSet;
 
                 // 0x2 SecondaryKey
                 if (fieldIndex >= m_reader.FieldsCount)
                 {
-                    info.Setter(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.FieldType));
+                    info.Setter.SetObject(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.FieldType));
                     continue;
                 }
 
                 if (info.IsArray)
                 {
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Data, m_reader.StringTable, info.Cardinality);
+                        info.Setter.SetObject(entry, reader(Data, m_reader.StringTable, info.Cardinality));
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
+                else if (SingleReaderCache<T>.Readers.TryGetValue(info.FieldType, out var reader))
+                    reader(entry, info, Data, m_reader.StringTable, m_reader);
                 else
-                {
-                    if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Data, m_reader.StringTable, m_reader);
-                    else
-                        throw new Exception("Unhandled field type: " + typeof(T).Name);
-                }
-
-                info.Setter(entry, value);
+                    throw new Exception("Unhandled field type: " + typeof(T).Name);
             }
         }
 
@@ -120,7 +127,7 @@ namespace DBCD.IO.Readers
 
             return array;
         }
-
+        
         public IDBRow Clone()
         {
             return (IDBRow)MemberwiseClone();

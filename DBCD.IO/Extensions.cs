@@ -9,20 +9,29 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using DBCD.IO.Common;
 
 namespace DBCD.IO
 {
     static class Extensions
     {
-        public static Action<T, object> GetSetter<T>(this FieldInfo fieldInfo)
+        public static IPrimitiveSetter<T> GetSetter<T>(this FieldInfo fieldInfo)
         {
-            var paramExpression = Expression.Parameter(typeof(T));
-            var propertyExpression = Expression.Field(paramExpression, fieldInfo);
-            var valueExpression = Expression.Parameter(typeof(object));
-            var convertExpression = Expression.Convert(valueExpression, fieldInfo.FieldType);
-            var assignExpression = Expression.Assign(propertyExpression, convertExpression);
+            Type fieldType = fieldInfo.FieldType;
 
-            return Expression.Lambda<Action<T, object>>(assignExpression, paramExpression, valueExpression).Compile();
+            var target = Expression.Parameter(typeof(T), "target");
+            var value = Expression.Parameter(fieldType, "value");
+            var field = Expression.Field(target, fieldInfo);
+            var assign = Expression.Assign(field, value);
+
+            // Compile to exact Action<T, TField>
+            var actionType = typeof(Action<,>).MakeGenericType(typeof(T), fieldType);
+            var lambda = Expression.Lambda(actionType, assign, target, value);
+            object compiledDelegate = lambda.Compile();
+
+            var closedSetterType = typeof(PrimitiveSetter<,>).MakeGenericType(typeof(T), fieldType);
+            var ctor = closedSetterType.GetConstructor(new[] { actionType });
+            return (IPrimitiveSetter<T>)ctor?.Invoke(new[] { compiledDelegate });
         }
 
         public static Func<T, object> GetGetter<T>(this FieldInfo fieldInfo)
