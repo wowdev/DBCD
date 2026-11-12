@@ -116,7 +116,11 @@ namespace DBCD.Providers
                 {
                     var lastWrite = File.GetLastWriteTime(cacheFile);
                     if (DateTime.Now - lastWrite < CacheExpiryTime)
+#if NET11_0_OR_GREATER
+                        return new ReadOnlyMemoryStream(File.ReadAllBytes(cacheFile));
+#else
                         return new MemoryStream(File.ReadAllBytes(cacheFile));
+#endif
                 }
             }
 

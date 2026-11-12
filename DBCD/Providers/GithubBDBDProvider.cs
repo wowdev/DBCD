@@ -24,7 +24,11 @@ namespace DBCD.Providers
                 else
                 {
                     if (!forceNew && DateTime.Now - fileInfo.LastWriteTime < CacheExpiryTime)
+#if NET11_0_OR_GREATER
+                        return new ReadOnlyMemoryStream(File.ReadAllBytes(currentFile));
+#else
                         return new MemoryStream(File.ReadAllBytes(currentFile));
+#endif
                 }
             }
 

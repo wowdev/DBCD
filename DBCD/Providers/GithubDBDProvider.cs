@@ -16,7 +16,7 @@ namespace DBCD.Providers
         public GithubDBDProvider(bool useCache = false)
         {
             UseCache = useCache;
-            if(useCache && !Directory.Exists(CachePath))
+            if (useCache && !Directory.Exists(CachePath))
                 Directory.CreateDirectory(CachePath);
 
             client.BaseAddress = BaseURI;
@@ -26,22 +26,26 @@ namespace DBCD.Providers
         {
             var query = $"{tableName}.dbd";
 
-            if(UseCache)
+            if (UseCache)
             {
                 var cacheFile = Path.Combine(CachePath, query);
-                if(File.Exists(cacheFile))
+                if (File.Exists(cacheFile))
                 {
                     var lastWrite = File.GetLastWriteTime(cacheFile);
-                    if(DateTime.Now - lastWrite < CacheExpiryTime)
+                    if (DateTime.Now - lastWrite < CacheExpiryTime)
+#if NET11_0_OR_GREATER
+                        return new ReadOnlyMemoryStream(File.ReadAllBytes(cacheFile));
+#else
                         return new MemoryStream(File.ReadAllBytes(cacheFile));
+#endif
                 }
             }
 
             var bytes = client.GetByteArrayAsync(query).Result;
 
-            if(UseCache)
+            if (UseCache)
                 File.WriteAllBytes(Path.Combine(CachePath, query), bytes);
-            
+
             return new MemoryStream(bytes);
         }
     }

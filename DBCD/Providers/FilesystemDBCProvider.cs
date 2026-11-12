@@ -18,7 +18,11 @@ namespace DBCD.Providers
         {
             if (UseCache && Cache.TryGetValue((tableName, build), out var cachedData))
             {
+#if NET11_0_OR_GREATER
+                return new ReadOnlyMemoryStream(cachedData);
+#else
                 return new MemoryStream(cachedData);
+#endif
             }
             else
             {
@@ -27,7 +31,12 @@ namespace DBCD.Providers
                     var bytes = File.ReadAllBytes(Path.Combine(Directory, $"{tableName}.db2"));
                     if (UseCache)
                         Cache[(tableName, build)] = bytes;
+
+#if NET11_0_OR_GREATER
+                    return new ReadOnlyMemoryStream(bytes);
+#else
                     return new MemoryStream(bytes);
+#endif
                 }
 
                 if (File.Exists(Path.Combine(Directory, $"{tableName}.dbc")))
@@ -35,7 +44,11 @@ namespace DBCD.Providers
                     var bytes = File.ReadAllBytes(Path.Combine(Directory, $"{tableName}.dbc"));
                     if(UseCache)
                         Cache[(tableName, build)] = File.ReadAllBytes(Path.Combine(Directory, $"{tableName}.dbc"));
+#if NET11_0_OR_GREATER
+                    return new ReadOnlyMemoryStream(bytes);
+#else
                     return new MemoryStream(bytes);
+#endif
                 }
 
                 throw new FileNotFoundException("Unable to find DBC/DB2 file on disk for table " + tableName);

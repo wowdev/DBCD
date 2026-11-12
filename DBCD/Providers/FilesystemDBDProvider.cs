@@ -43,12 +43,20 @@ namespace DBCD.Providers
         public Stream StreamForTableName(string tableName, string build = null)
         {
             if (Cache.TryGetValue((tableName, build), out var cachedData))
+#if NET11_0_OR_GREATER
+                return new ReadOnlyMemoryStream(cachedData);
+#else
                 return new MemoryStream(cachedData);
+#endif
             else
             {
                 var data = File.ReadAllBytes(Path.Combine(directory, $"{tableName}.dbd"));
                 Cache[(tableName, build)] = data;
+#if NET11_0_OR_GREATER
+                return new ReadOnlyMemoryStream(data);
+#else
                 return new MemoryStream(data);
+#endif
             }
         }
     }
