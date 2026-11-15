@@ -25,19 +25,23 @@ namespace DBCD.IO.Readers
             Id = m_recordIndex = recordIndex + 1;
         }
 
-        private static Dictionary<Type, Func<BitReader, Dictionary<long, string>, BaseReader, object>> simpleReaders = new Dictionary<Type, Func<BitReader, Dictionary<long, string>, BaseReader, object>>
+        private static class SingleReaderCache<T>
         {
-            [typeof(long)] = (data, stringTable, header) => GetFieldValue<long>(data),
-            [typeof(float)] = (data, stringTable, header) => GetFieldValue<float>(data),
-            [typeof(int)] = (data, stringTable, header) => GetFieldValue<int>(data),
-            [typeof(uint)] = (data, stringTable, header) => GetFieldValue<uint>(data),
-            [typeof(short)] = (data, stringTable, header) => GetFieldValue<short>(data),
-            [typeof(ushort)] = (data, stringTable, header) => GetFieldValue<ushort>(data),
-            [typeof(sbyte)] = (data, stringTable, header) => GetFieldValue<sbyte>(data),
-            [typeof(byte)] = (data, stringTable, header) => GetFieldValue<byte>(data),
-            [typeof(string)] = (data, stringTable, header) => stringTable[GetFieldValue<int>(data)],
-        };
-
+            public static readonly Dictionary<Type, Action<T, FieldCache<T>, BitReader, Dictionary<long, string>>> Readers = new()
+            {
+                { typeof(long), (entry, info, data, _) => info.Setter.SetValue(entry, GetFieldValue<long>(data)) },
+                { typeof(ulong), (entry, info, data, _) => info.Setter.SetValue(entry, GetFieldValue<ulong>(data)) },
+                { typeof(float), (entry, info, data, _) => info.Setter.SetValue(entry, GetFieldValue<float>(data)) },
+                { typeof(uint), (entry, info, data, _) => info.Setter.SetValue(entry, GetFieldValue<uint>(data)) },
+                { typeof(int), (entry, info, data, _) => info.Setter.SetValue(entry, GetFieldValue<int>(data)) },
+                { typeof(ushort), (entry, info, data, _) => info.Setter.SetValue(entry, GetFieldValue<ushort>(data)) },
+                { typeof(short), (entry, info, data, _) => info.Setter.SetValue(entry, GetFieldValue<short>(data)) },
+                { typeof(byte), (entry, info, data, _) => info.Setter.SetValue(entry, GetFieldValue<byte>(data)) },
+                { typeof(sbyte), (entry, info, data, _) => info.Setter.SetValue(entry, GetFieldValue<sbyte>(data)) },
+                { typeof(string), (entry, info, data, stringTable) => info.Setter.SetObject(entry, stringTable[GetFieldValue<int>(data)]) }
+            };
+        }
+        
         private static Dictionary<Type, Func<BitReader, Dictionary<long, string>, int, object>> arrayReaders = new Dictionary<Type, Func<BitReader, Dictionary<long, string>, int, object>>
         {
             [typeof(ulong[])] = (data, stringTable, cardinality) => GetFieldValueArray<ulong>(data, cardinality),
@@ -61,34 +65,30 @@ namespace DBCD.IO.Readers
                 if (info.IndexMapField)
                 {
                     Id = GetFieldValue<int>(Data);
-                    info.Setter(entry, Convert.ChangeType(Id, info.FieldType));
+                    if (info.FieldType == typeof(int))
+                        info.Setter.SetValue(entry, Id);
+                    else
+                        info.Setter.SetObject(entry, Convert.ChangeType(Id, info.FieldType));
                     continue;
                 }
-
-                object value = null;
 
                 if (info.IsArray)
                 {
                     if (arrayReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Data, m_reader.StringTable, info.Cardinality);
+                        info.Setter.SetObject(entry, reader(Data, m_reader.StringTable, info.Cardinality));
                     else
                         throw new Exception("Unhandled array type: " + typeof(T).Name);
                 }
                 else if (info.IsLocalisedString)
                 {
                     Data.Position += 32 * info.LocaleInfo.Locale;
-                    value = simpleReaders[typeof(string)](Data, m_reader.StringTable, m_reader);
+                    info.Setter.SetObject(entry, m_reader.StringTable[GetFieldValue<int>(Data)]);
                     Data.Position += 32 * (info.LocaleInfo.LocaleCount - info.LocaleInfo.Locale);
                 }
+                else if (SingleReaderCache<T>.Readers.TryGetValue(info.FieldType, out var reader))
+                    reader.Invoke(entry, info, Data, m_reader.StringTable);
                 else
-                {
-                    if (simpleReaders.TryGetValue(info.FieldType, out var reader))
-                        value = reader(Data, m_reader.StringTable, m_reader);
-                    else
-                        throw new Exception("Unhandled field type: " + typeof(T).Name);
-                }
-
-                info.Setter(entry, value);
+                    throw new Exception("Unhandled field type: " + typeof(T).Name);
             }
         }
 

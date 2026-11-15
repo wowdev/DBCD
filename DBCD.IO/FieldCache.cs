@@ -1,6 +1,7 @@
 ﻿using DBCD.IO.Attributes;
 using System;
 using System.Reflection;
+using DBCD.IO.Common;
 
 namespace DBCD.IO
 {
@@ -9,7 +10,7 @@ namespace DBCD.IO
         public readonly FieldInfo Field;
         public readonly bool IsArray = false;
         public readonly bool IsLocalisedString = false;
-        public readonly Action<T, object> Setter;
+        public readonly IPrimitiveSetter<T> Setter;
         public readonly Func<T, object> Getter;
         public readonly LocaleAttribute LocaleInfo;
 
