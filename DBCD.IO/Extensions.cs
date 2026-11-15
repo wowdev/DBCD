@@ -73,33 +73,38 @@ namespace DBCD.IO
 
             byte[] stringTableBytes = ArrayPool<byte>.Shared.Rent(stringTableSize); // may return a lager buffer than requested
             Span<byte> bufferSpan = stringTableBytes.AsSpan(0, stringTableSize);
-            _ = reader.Read(bufferSpan);
+            reader.ReadExactly(bufferSpan);
 
             try
             {
-                int start = 0;
-                for (int i = 0; i < bufferSpan.Length; ++i)
+                int currentPosition = 0;
+                while (currentPosition < bufferSpan.Length)
                 {
-                    if (stringTableBytes[i] == 0)
+                    ReadOnlySpan<byte> currentSegment = bufferSpan.Slice(currentPosition);
+                    int index = currentSegment.IndexOf((byte)0);
+                    
+                    if (index != -1)
                     {
-                        string str = Encoding.UTF8.GetString(bufferSpan.Slice(start, i - start));
+                        // A null-terminator has been found - splice the span and parse the string
+                        string str = Encoding.UTF8.GetString(currentSegment.Slice(0, index));
                         if (usePos)
-                            stringTable[reader.BaseStream.Position - stringTableSize + start] = str;
+                            stringTable[reader.BaseStream.Position - stringTableSize + currentPosition] = str;
                         else
-                            stringTable[baseOffset + start] = str;
+                            stringTable[baseOffset + currentPosition] = str;
 
-                        start = i + 1;
+                        currentPosition += index + 1;
                     }
-                }
-
-                // Trailing string
-                if (start < bufferSpan.Length)
-                {
-                    string str = Encoding.UTF8.GetString(bufferSpan.Slice(start));
-                    if (usePos)
-                        stringTable[reader.BaseStream.Position - stringTableSize + start] = str;
                     else
-                        stringTable[baseOffset + start] = str;
+                    {
+                        // No null-terminator has been found - treat the remaining data as string
+                        string str = Encoding.UTF8.GetString(currentSegment);
+                        if (usePos)
+                            stringTable[reader.BaseStream.Position - stringTableSize + currentPosition] = str;
+                        else
+                            stringTable[baseOffset + currentPosition] = str;
+                        
+                        break;
+                    }
                 }
 
                 return stringTable;
